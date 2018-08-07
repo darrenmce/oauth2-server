@@ -2,7 +2,7 @@
 
 handlers and middleware for JWT-based oauth with a [QRcode based MFA](https://git.coolaj86.com/coolaj86/node-authenticator.js)
 
-its in typescript with no build yet, but try it out with:
+try it out with:
 
 `npm run example`
 
