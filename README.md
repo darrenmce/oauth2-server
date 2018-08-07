@@ -10,7 +10,7 @@ then
 
 1) register:
    - `localhost:8080/register?account=myTestAccount`
-2) get your QR code (in the browser):
+2) get your horribly unsecure (to be secured...) QR code (in the browser):
    - `localhost:8080/qr?account=myTestAccount` <-- use this to add this to your device
 3) get your oauth/jwt token:
    - `localhost:8080/token?account=myTestAccount&token=123456` <-- 6 digits from the device
