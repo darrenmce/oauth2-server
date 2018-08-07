@@ -1,0 +1,29 @@
+{
+  "name": "express-mfa-oauth",
+  "version": "1.0.0",
+  "description": "",
+  "main": "dist/index.js",
+  "scripts": {
+    "build": "rimraf dist && tsc",
+    "example": "ts-node src/example.ts",
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "authenticator": "^1.1.5",
+    "jsonwebtoken": "^8.3.0",
+    "qrcode": "^1.2.2"
+  },
+  "devDependencies": {
+    "@types/node": "^10.5.7",
+    "chai": "^4.1.2",
+    "express": "^4.16.3",
+    "mocha": "^5.2.0",
+    "nodemon": "^1.18.3",
+    "rimraf": "^2.6.2",
+    "supertest": "^3.1.0",
+    "ts-node": "^7.0.0",
+    "typescript": "^3.0.1"
+  }
+}
