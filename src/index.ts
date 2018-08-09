@@ -1,14 +1,9 @@
+import * as Bluebird from 'bluebird';
 import * as authenticator from 'authenticator';
 import * as jwt from 'jsonwebtoken';
 import * as qrcode from 'qrcode';
-import { IKeyStore } from './lib/key-store-factory';
-
-type MFAHandlersOptions = {
-  jwtKeys: RSAKeyPair,
-  issuer: string,
-  tokenHeader: string,
-  keyStore: IKeyStore
-}
+import { AccountExistsError, IKeyStore, MFAKey } from './lib/key-store-factory';
+import { Request, Response, NextFunction } from 'express';
 
 type RSAKeyPair = {
   priv: Buffer,
@@ -17,33 +12,35 @@ type RSAKeyPair = {
 
 const RSA256_ALGORITHM = 'RS256';
 
-type MFAHandlers = {
-  registerHandler(req, res),
-  validateMiddleware(req, res, next),
-  generateTokenHandler(req, res),
-  qrCodeHandler(req, res)
+interface AuthRequest extends Request {
+  auth?: any
 }
 
-export function createMFAHandlers({ jwtKeys, issuer, tokenHeader, keyStore }: MFAHandlersOptions): MFAHandlers {
+export class MFAExpress {
 
-  function qrCodeHandler(req, res) {
-    const {account} = req.query;
-    const mfaKey = keyStore.get(account);
-    if (!mfaKey) {
-      return res.sendStatus(404);
-    }
-    const uri = authenticator.generateTotpUri(mfaKey, account, issuer, 'SHA1', 6, 30);
-    qrcode.toDataURL(uri, (err, url) => {
-      res.send(`<html><img src="${url}"/></html>`);
-    });
+  constructor(
+    private jwtKeys: RSAKeyPair,
+    private issuer: string,
+    private tokenHeader: string,
+    private keyStore: IKeyStore
+  ) {
+    this.register = this.register.bind(this);
+    this.validate = this.validate.bind(this);
+    this.login = this.login.bind(this);
   }
 
-  function validateMiddleware(req, res, next) {
-    const token = req.header(tokenHeader);
+  protected renderQRCode(account: string, mfaKey: MFAKey): Promise<string> {
+    const uri = authenticator.generateTotpUri(mfaKey, account, this.issuer, 'SHA1', 6, 30);
+    return qrcode.toDataURL(uri)
+      .then(data => `<html><img src="${data}" /></html>`);
+  }
+
+  validate(req: AuthRequest, res: Response, next: NextFunction) {
+    const token = req.header(this.tokenHeader);
     if (!token) {
       return res.sendStatus(403);
     }
-    jwt.verify(token, jwtKeys.pub, { algorithms: [RSA256_ALGORITHM] }, (err, decoded) => {
+    jwt.verify(token, this.jwtKeys.pub, { algorithms: [RSA256_ALGORITHM] }, (err, decoded) => {
       if (err) {
         return res.sendStatus(401);
       }
@@ -52,43 +49,44 @@ export function createMFAHandlers({ jwtKeys, issuer, tokenHeader, keyStore }: MF
     });
   }
 
-  function generateTokenHandler(req, res) {
-    const { account, token } = req.query;
-    if (!account || !token) {
-      return res.sendStatus(400);
-    }
-    const mfaKey = keyStore.get(account);
-    if (!mfaKey) {
-      return res.sendStatus(404);
-    }
-    const verifyMFAToken = authenticator.verifyToken(mfaKey, token);
-    if (!verifyMFAToken) {
-      return res.sendStatus(403);
-    }
-    jwt.sign({ foo: 'bar' }, jwtKeys.priv, { algorithm: RSA256_ALGORITHM }, (err, jToken) => {
-      if (err) {
-        return res.sendStatus(500);
-      }
-      res.send(jToken);
-    });
-  }
-
-  function registerHandler(req, res) {
+  register(req: Request, res: Response) {
+    const { keyStore } = this;
     const { account } = req.query;
     if (!account) {
       return res.sendStatus(400);
     }
-    if (keyStore.get(account)) {
-      return res.status(401).send('account exists');
-    }
-    keyStore.create(account);
-    res.sendStatus(201);
+    Bluebird.resolve(keyStore.create(account))
+      .then(key => {
+        if (!key) {
+          return res.sendStatus(500);
+        }
+        return this.renderQRCode(account, key)
+          .then(html => {
+            res.status(201).send(html);
+          });
+      })
+      .catch(AccountExistsError, () =>
+        res.status(400).send('Account already exists'))
   }
 
-  return {
-    validateMiddleware,
-    generateTokenHandler,
-    qrCodeHandler,
-    registerHandler
+  login(req: Request, res: Response) {
+    const { keyStore, jwtKeys } = this;
+    const { account, token } = req.query;
+    if (!account || !token) {
+      return res.sendStatus(400);
+    }
+    keyStore.verify(account, token)
+      .then(verifyResult => {
+        if (!verifyResult) {
+          return res.status(403).send('MFA token was not verified');
+        }
+        jwt.sign({ foo: 'bar', account }, jwtKeys.priv, { algorithm: RSA256_ALGORITHM }, (err, jToken) => {
+          if (err) {
+            return res.status(500).send(err.message);
+          }
+          res.send(jToken);
+        });
+      });
   }
 }
+

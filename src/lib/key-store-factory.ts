@@ -5,12 +5,14 @@ export enum KeyStoreType {
   redis = "REDIS"
 }
 
+const VERIFY_DELTA_THRESHOLD = 2;
+
 export interface IKeyStore {
-  create(account: string): void
-  get(account: string): MFAKey | null
+  create(account: string): Promise<MFAKey>
+  verify(account: string, token: number): Promise<boolean>
 }
 
-type MFAKey = string;
+export type MFAKey = string;
 
 
 export function keyStoreFactory(type: KeyStoreType): IKeyStore {
@@ -19,17 +21,51 @@ export function keyStoreFactory(type: KeyStoreType): IKeyStore {
   }
 }
 
+export class AccountExistsError extends Error {
+  constructor() {
+    super('account exists already');
+    Object.setPrototypeOf(this, new.target.prototype);
+  }
+}
+
+export class AccountDoesNotExistError extends Error {
+  constructor() {
+    super('account does not exist');
+    Object.setPrototypeOf(this, new.target.prototype);
+  }
+}
+
+type KeyStoreMap = { [account: string]: Promise<MFAKey> };
+
 class MemoryKeyStore implements IKeyStore {
-  private keys: { [account: string]: string };
+  private keys: KeyStoreMap;
   constructor() {
     this.keys = {};
   }
 
-  create(account: string): void {
-    this.keys[account] = authenticator.generateKey();
+  private generateKey(): Promise<MFAKey> {
+    return Promise.resolve(authenticator.generateKey());
   }
 
-  get(account: string): MFAKey {
+  create(account: string): Promise<MFAKey> {
+    if (this.keys[account]) {
+      return Promise.reject(new AccountExistsError());
+    }
+    this.keys[account] = this.generateKey();
     return this.keys[account];
+  }
+
+  verify(account: string, token: number): Promise<boolean> {
+    if (!this.keys[account]) {
+      return Promise.reject(new AccountDoesNotExistError());
+    }
+    return this.keys[account]
+      .then(key => {
+        const result = authenticator.verifyToken(key, token);
+        if (!result) {
+          return false;
+        }
+        return result.delta < VERIFY_DELTA_THRESHOLD;
+      });
   }
 }

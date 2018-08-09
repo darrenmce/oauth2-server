@@ -8,7 +8,6 @@
     "sourceMap": true,
     "outDir": "dist",
     "baseUrl": ".",
-    "allowJs": false,
     "paths": {
       "*": [
         "node_modules/*",
@@ -18,13 +17,13 @@
     "typeRoots": [
       "@types",
       "node_modules/@types",
-      "./src/@types"
+      "src/@types"
     ],
-    "lib": ["es6", "dom", "esnext"]
+    "lib": ["es6"]
   },
   "include": [
     "src/index.ts",
-    "@types/**/*"
+    "src/@types/*"
   ],
   "exclude": [
     "node_modules/**/*"

@@ -1,13 +1,21 @@
 import * as fs from 'fs';
 import * as express from 'express';
-import { createMFAHandlers } from './index';
+import { MFAExpress } from './index';
 import { keyStoreFactory, KeyStoreType } from './lib/key-store-factory';
 
-const app = express();
+//extend the request type
+declare global {
+  namespace Express {
+    interface Request {
+      auth?: any
+    }
+  }
+}
 
+const app = express();
 const keyStore = keyStoreFactory(KeyStoreType.memory);
 
-const mfaHandlers = createMFAHandlers({
+let config = {
   issuer: "my test issuer",
   keyStore,
   tokenHeader: 'X-Token',
@@ -15,16 +23,21 @@ const mfaHandlers = createMFAHandlers({
     pub: fs.readFileSync(__dirname + '/test_keys/public.key'),
     priv: fs.readFileSync(__dirname + '/test_keys/private.key')
   }
-});
+};
 
-app.get('/register', mfaHandlers.registerHandler);
-app.get('/qr', mfaHandlers.qrCodeHandler);
-app.get('/token', mfaHandlers.generateTokenHandler);
+const mfa = new MFAExpress(
+  config.jwtKeys,
+  config.issuer,
+  config.tokenHeader,
+  config.keyStore
+);
 
-app.use(mfaHandlers.validateMiddleware);
+app.get('/register', mfa.register);
+app.get('/login', mfa.login);
+app.use(mfa.validate);
 
 app.get('/test', (req, res) => {
-  res.send('test success');
+  res.json(req.auth);
 });
 
 app.listen(8080, () => {

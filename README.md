@@ -8,11 +8,9 @@ try it out with:
 
 then
 
-1) register:
-   - `localhost:8080/register?account=myTestAccount`
-2) get your horribly unsecure (to be secured...) QR code (in the browser):
-   - `localhost:8080/qr?account=myTestAccount` <-- use this to add this to your device
-3) get your oauth/jwt token:
-   - `localhost:8080/token?account=myTestAccount&token=123456` <-- 6 digits from the device
-4) now hit the app with your oauth token:
+1) register (in browser, you will get a 1-time QRCode):
+   - `localhost:8080/register?account=myTestAccount` <-- scan code with your authenticator app
+2) get your oauth/jwt token:
+   - `localhost:8080/login?account=myTestAccount&token=123456` <-- 6 digits from the authenicator app
+3) now hit the app with your oauth token:
    - `curl -H 'X-Token: <your token here>' localhost:8080/test'`
