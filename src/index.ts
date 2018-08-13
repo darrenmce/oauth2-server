@@ -1,92 +1,67 @@
-import * as Bluebird from 'bluebird';
-import * as authenticator from 'authenticator';
-import * as jwt from 'jsonwebtoken';
-import * as qrcode from 'qrcode';
-import { AccountExistsError, IKeyStore, MFAKey } from './lib/key-store-factory';
-import { Request, Response, NextFunction } from 'express';
+import * as express from 'express';
+import * as bodyParser from 'body-parser';
 
-type RSAKeyPair = {
-  priv: Buffer,
-  pub: Buffer
-}
+import { keyStoreFactory } from './lib/stores/key-store-factory';
+import { credentialsStoreFactory } from './lib/stores/credentials-store-factory';
+import { ClientCredentials } from './lib/grants/ClientCredentials';
+import { Password } from './lib/grants/Password';
+import { MFAClientCredentials } from './lib/grants/MFAClientCredentials';
+import { MFAPassword } from './lib/grants/MFAPassword';
 
-const RSA256_ALGORITHM = 'RS256';
+import { getConfig } from './config';
+import { TokenRouter } from './handlers';
 
-interface AuthRequest extends Request {
-  auth?: any
-}
+import { Grants } from './lib/grants/types';
+import { CredentialsStoreType, KeyStoreType, Stores } from './lib/stores/types';
 
-export class MFAExpress {
-
-  constructor(
-    private jwtKeys: RSAKeyPair,
-    private issuer: string,
-    private tokenHeader: string,
-    private keyStore: IKeyStore
-  ) {
-    this.register = this.register.bind(this);
-    this.validate = this.validate.bind(this);
-    this.login = this.login.bind(this);
-  }
-
-  protected renderQRCode(account: string, mfaKey: MFAKey): Promise<string> {
-    const uri = authenticator.generateTotpUri(mfaKey, account, this.issuer, 'SHA1', 6, 30);
-    return qrcode.toDataURL(uri)
-      .then(data => `<html><img src="${data}" /></html>`);
-  }
-
-  validate(req: AuthRequest, res: Response, next: NextFunction) {
-    const token = req.header(this.tokenHeader);
-    if (!token) {
-      return res.sendStatus(403);
+//extend the request type
+declare global {
+  namespace Express {
+    interface Request {
+      auth?: any
     }
-    jwt.verify(token, this.jwtKeys.pub, { algorithms: [RSA256_ALGORITHM] }, (err, decoded) => {
-      if (err) {
-        return res.sendStatus(401);
-      }
-      req.auth = decoded;
-      next();
-    });
-  }
-
-  register(req: Request, res: Response) {
-    const { keyStore } = this;
-    const { account } = req.query;
-    if (!account) {
-      return res.sendStatus(400);
-    }
-    Bluebird.resolve(keyStore.create(account))
-      .then(key => {
-        if (!key) {
-          return res.sendStatus(500);
-        }
-        return this.renderQRCode(account, key)
-          .then(html => {
-            res.status(201).send(html);
-          });
-      })
-      .catch(AccountExistsError, () =>
-        res.status(400).send('Account already exists'))
-  }
-
-  login(req: Request, res: Response) {
-    const { keyStore, jwtKeys } = this;
-    const { account, token } = req.query;
-    if (!account || !token) {
-      return res.sendStatus(400);
-    }
-    keyStore.verify(account, token)
-      .then(verifyResult => {
-        if (!verifyResult) {
-          return res.status(403).send('MFA token was not verified');
-        }
-        jwt.sign({ foo: 'bar', account }, jwtKeys.priv, { algorithm: RSA256_ALGORITHM }, (err, jToken) => {
-          if (err) {
-            return res.status(500).send(err.message);
-          }
-          res.send(jToken);
-        });
-      });
   }
 }
 
+const config = getConfig();
+
+const keyStore = keyStoreFactory(KeyStoreType.memory, {
+  testMfa: '766s v7ay wjyi 26nf 3uk2 gyyn pzvz suvl'
+});
+const credsStore = credentialsStoreFactory(CredentialsStoreType.memory, {
+  test: '123',
+  testMfa: 'abc'
+});
+
+
+const clientCredentials = new ClientCredentials(credsStore);
+const passwordGrant = new Password(credsStore);
+const grants: Grants = {
+  clientCredentials,
+  password: passwordGrant,
+  mfaClientCredentials: new MFAClientCredentials(clientCredentials, keyStore),
+  mfaPassword: new MFAPassword(passwordGrant, keyStore)
+};
+
+const stores: Stores = {
+  keyStore,
+  credentialsStore: credsStore
+};
+const tokenRouter = new TokenRouter(
+  config.router,
+  grants,
+  stores
+).getRouter();
+
+
+const app = express();
+app.use(bodyParser.urlencoded({ extended: false }));
+app.use('/auth', tokenRouter);
+
+app.get('/test', (req, res) => {
+  res.json(req.auth);
+});
+
+app.listen(8080, () => {
+  console.log('listening on 8080');
+});
