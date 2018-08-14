@@ -4,7 +4,7 @@
 
 First target:
   - registration with QRcode for authenticator apps (MFA)
-  - `client_credentials` and `password` grants
-  - mfa extension grants for the above grants
-  - JWT token provisioning
+  - `authorization_code` and `password` grants
+  - mfa extension grant for password grant
+  - token provisioning
   - Redis backend
