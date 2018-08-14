@@ -3,9 +3,7 @@ import * as bodyParser from 'body-parser';
 
 import { keyStoreFactory } from './lib/stores/key-store-factory';
 import { credentialsStoreFactory } from './lib/stores/credentials-store-factory';
-import { ClientCredentials } from './lib/grants/ClientCredentials';
 import { Password } from './lib/grants/Password';
-import { MFAClientCredentials } from './lib/grants/MFAClientCredentials';
 import { MFAPassword } from './lib/grants/MFAPassword';
 
 import { getConfig } from './config';
@@ -33,20 +31,18 @@ const credsStore = credentialsStoreFactory(CredentialsStoreType.memory, {
   testMfa: 'abc'
 });
 
-const clientCredentials = new ClientCredentials(credsStore);
 const passwordGrant = new Password(credsStore);
+
 const grants: Grants = {
-  clientCredentials,
   password: passwordGrant,
-  mfaClientCredentials: new MFAClientCredentials(clientCredentials, keyStore),
   mfaPassword: new MFAPassword(passwordGrant, keyStore)
 };
 
 const stores: Stores = {
   keyStore,
-
   credentialsStore: credsStore
 };
+
 const tokenRouter = new TokenHandler(
   config.router,
   grants,

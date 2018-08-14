@@ -11,7 +11,6 @@ const DUMMY_SUCCESS_TOKEN = {
   'expires_in': 3600
 };
 
-
 type GrantValidationResult = {
   validated: boolean,
   reason?: string
@@ -30,10 +29,9 @@ export class TokenHandler {
     }
     switch (grantType) {
       case GrantType.password:
-      case GrantType.clientCredentials:
         return this.stores.keyStore.isEnabled(account).then(mfaEnabled => {
           if (mfaEnabled) {
-            throw new GrantNotAllowed(`${GrantType.mfaPassword} OR ${GrantType.mfaClientCredentials}`);
+            throw new GrantNotAllowed(GrantType.mfaPassword);
           }
           return true;
         });
@@ -62,17 +60,12 @@ export class TokenHandler {
 
       let validation;
       switch(grantType) {
-        case GrantType.clientCredentials:
-          validation = this.grants.clientCredentials.validate(req.header('authorization'));
-          break;
         case GrantType.password:
           validation = this.grants.password.validate({
             username: req.body.username,
             password: req.body.password
           });
           break;
-        case GrantType.mfaClientCredentials:
-          validation = this.grants.mfaClientCredentials.validate(req.header('authorization'), req.header(this.routerConfig.mfaTokenHeader));
         case GrantType.mfaPassword:
           validation = this.grants.mfaPassword.validate({
             username: req.body.username,

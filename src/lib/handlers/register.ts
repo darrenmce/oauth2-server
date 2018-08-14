@@ -1,6 +1,6 @@
 import * as authenticator from 'authenticator';
 import * as qrcode from 'qrcode';
-import { ICredentialsStore, MFAKey, Stores } from '../stores/types';
+import { MFAKey, Stores } from '../stores/types';
 import { NextFunction, Request, Response, Router } from 'express';
 
 export type RegistrationPayload = {
