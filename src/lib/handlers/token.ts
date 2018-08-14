@@ -1,9 +1,9 @@
 import { NextFunction, Request, Response, Router } from 'express';
 
-import { Grants, GrantType, Username } from './lib/grants/types';
-import { Stores } from './lib/stores/types';
-import { GrantNotAllowed } from './lib/stores/errors';
-import { RouterConfig } from './config';
+import { Grants, GrantType, Username } from '../grants/types';
+import { Stores } from '../stores/types';
+import { GrantNotAllowed } from '../stores/errors';
+import { RouterConfig } from '../../config/types';
 
 const DUMMY_SUCCESS_TOKEN = {
   'access_token': '2YotnFZFEjr1zCsicMWpAA',
@@ -17,7 +17,7 @@ type GrantValidationResult = {
   reason?: string
 }
 
-export class TokenRouter {
+export class TokenHandler {
   constructor(
     private readonly routerConfig: RouterConfig,
     private readonly grants: Grants,

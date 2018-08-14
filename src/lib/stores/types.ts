@@ -1,4 +1,4 @@
-import { BasicAuth } from '../grants/types';
+import { BasicAuth, Username } from '../grants/types';
 
 export enum CredentialsStoreType {
   memory = "MEMORY"
@@ -10,6 +10,7 @@ export enum KeyStoreType {
 
 export interface ICredentialsStore {
   create(auth: BasicAuth): Promise<boolean>
+  exists(username: Username): Promise<boolean>
   validate(auth: BasicAuth): Promise<boolean>
 }
 

@@ -1,20 +1,12 @@
 import * as rc from 'rc';
-const { name } = require('../package.json');
-
-export type RouterConfig = {
-  mfaTokenHeader: string
-}
-
-export type OAuthConfig = {
-  router: RouterConfig
-}
+import { OAuthConfig } from './types';
+const { name } = require('../../package.json');
 
 const defaultConfig: OAuthConfig = {
   router: {
     mfaTokenHeader: 'X-Rangle-MFA'
   }
 };
-
 
 let called = false;
 export function getConfig(): OAuthConfig {

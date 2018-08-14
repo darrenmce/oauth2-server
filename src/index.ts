@@ -9,10 +9,11 @@ import { MFAClientCredentials } from './lib/grants/MFAClientCredentials';
 import { MFAPassword } from './lib/grants/MFAPassword';
 
 import { getConfig } from './config';
-import { TokenRouter } from './handlers';
+import { TokenHandler } from './lib/handlers/token';
 
 import { Grants } from './lib/grants/types';
 import { CredentialsStoreType, KeyStoreType, Stores } from './lib/stores/types';
+import { RegisterHandler } from './lib/handlers/register';
 
 //extend the request type
 declare global {
@@ -22,7 +23,6 @@ declare global {
     }
   }
 }
-
 const config = getConfig();
 
 const keyStore = keyStoreFactory(KeyStoreType.memory, {
@@ -32,7 +32,6 @@ const credsStore = credentialsStoreFactory(CredentialsStoreType.memory, {
   test: '123',
   testMfa: 'abc'
 });
-
 
 const clientCredentials = new ClientCredentials(credsStore);
 const passwordGrant = new Password(credsStore);
@@ -45,21 +44,27 @@ const grants: Grants = {
 
 const stores: Stores = {
   keyStore,
+
   credentialsStore: credsStore
 };
-const tokenRouter = new TokenRouter(
+const tokenRouter = new TokenHandler(
   config.router,
   grants,
   stores
 ).getRouter();
-
+const registerRouter = new RegisterHandler(stores).getRouter();
 
 const app = express();
-app.use(bodyParser.urlencoded({ extended: false }));
-app.use('/auth', tokenRouter);
+app.set('view engine', 'pug');
+app.set('views', './views');
 
-app.get('/test', (req, res) => {
-  res.json(req.auth);
+app.use(bodyParser.urlencoded({ extended: false }));
+
+app.use('/auth', tokenRouter);
+app.use('/register', registerRouter);
+
+app.get('/login', (req, res) => {
+  res.render('login');
 });
 
 app.listen(8080, () => {

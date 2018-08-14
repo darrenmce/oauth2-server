@@ -1,7 +1,7 @@
 import * as bcrypt from 'bcryptjs';
 import * as R from 'ramda';
 import { ICredentialsStore } from './types';
-import { BasicAuth } from '../grants/types';
+import { BasicAuth, Username } from '../grants/types';
 import { AccountDoesNotExistError, AccountExistsError } from './errors';
 
 type MemoryCredentialsMap = { [account: string]: Promise<string> };
@@ -14,7 +14,7 @@ export class MemoryCredentialsStore implements ICredentialsStore {
     this.users = {};
     if (seedData) {
       R.forEachObjIndexed(
-        (password, username) => this.create({ username, password }),
+        (password, username: string) => this.create({ username, password }),
         seedData
       );
     }
@@ -27,6 +27,10 @@ export class MemoryCredentialsStore implements ICredentialsStore {
     }
     this.users[username] = bcrypt.hash(password, 8);
     return this.users[username].then(() => true);
+  }
+
+  exists(username: Username): Promise<boolean> {
+    return Promise.resolve(!!this.users[username]);
   }
 
   validate({ username, password }: BasicAuth): Promise<boolean> {
