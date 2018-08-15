@@ -8,3 +8,7 @@ First target:
   - mfa extension grant for password grant
   - token provisioning
   - Redis backend
+
+### Getting Started
+
+- Run `npm start` to get the server running.
