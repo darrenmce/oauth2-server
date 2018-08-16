@@ -12,9 +12,16 @@ export class AccountDoesNotExistError extends Error {
   }
 }
 
-export class GrantNotAllowed extends Error {
+export class GrantNotAllowedError extends Error {
   constructor(recommendedGrant?: string) {
     super(`Grant not allowed${recommendedGrant ? ' - please use ' + recommendedGrant: ''}`);
+    Object.setPrototypeOf(this, new.target.prototype);
+  }
+}
+
+export class AuthorizationFailedError extends Error {
+  constructor() {
+    super('Authorization Failed');
     Object.setPrototypeOf(this, new.target.prototype);
   }
 }

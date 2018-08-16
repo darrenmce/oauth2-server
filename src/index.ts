@@ -7,11 +7,14 @@ import { Password } from './lib/grants/Password';
 import { MFAPassword } from './lib/grants/MFAPassword';
 
 import { getConfig } from './config';
-import { TokenHandler } from './lib/handlers/token';
+import { TokenHandler } from './lib/handlers/TokenHandler';
 
 import { Grants } from './lib/grants/types';
-import { CredentialsStoreType, KeyStoreType, Stores } from './lib/stores/types';
-import { RegisterHandler } from './lib/handlers/register';
+import { AuthCodeStoreType, CredentialsStoreType, KeyStoreType, Stores } from './lib/stores/types';
+import { RegisterHandler } from './lib/handlers/RegisterHandler';
+import { authCodeStoreFactory } from './lib/stores/auth-code-store-factory';
+import { AuthorizationCode } from './lib/grants/AuthorizationCode';
+import { AuthorizationCodeHandler } from './lib/handlers/AuthorizationCodeHandler';
 
 //extend the request type
 declare global {
@@ -21,27 +24,34 @@ declare global {
     }
   }
 }
+
 const config = getConfig();
 
 const keyStore = keyStoreFactory(KeyStoreType.memory, {
   testMfa: '766s v7ay wjyi 26nf 3uk2 gyyn pzvz suvl'
 });
-const credsStore = credentialsStoreFactory(CredentialsStoreType.memory, {
+const credentialsStore = credentialsStoreFactory(CredentialsStoreType.memory, {
   test: '123',
   testMfa: 'abc'
 });
+const authCodeStore = authCodeStoreFactory(AuthCodeStoreType.memory);
 
-const passwordGrant = new Password(credsStore);
-
-const grants: Grants = {
-  password: passwordGrant,
-  mfaPassword: new MFAPassword(passwordGrant, keyStore)
-};
 
 const stores: Stores = {
   keyStore,
-  credentialsStore: credsStore
+  credentialsStore,
+  authCodeStore
 };
+
+stores.authCodeStore.generate({clientId: 'test', username: 'testMfa', redirectURI: 'http://google.ca'});
+
+const passwordGrant = new Password(stores.credentialsStore);
+const grants: Grants = {
+  password: passwordGrant,
+  mfaPassword: new MFAPassword(passwordGrant, keyStore),
+  authorizationCode: new AuthorizationCode(stores.authCodeStore, stores.credentialsStore)
+};
+
 
 const tokenRouter = new TokenHandler(
   config.router,
@@ -49,13 +59,13 @@ const tokenRouter = new TokenHandler(
   stores
 ).getRouter();
 const registerRouter = new RegisterHandler(stores).getRouter();
-
+const authorizationCodeRouter = new AuthorizationCodeHandler(stores).getRouter();
 const app = express();
 app.set('view engine', 'pug');
 app.set('views', './views');
 
 app.use(bodyParser.urlencoded({ extended: false }));
-
+app.use('/authorize', authorizationCodeRouter);
 app.use('/auth', tokenRouter);
 app.use('/register', registerRouter);
 

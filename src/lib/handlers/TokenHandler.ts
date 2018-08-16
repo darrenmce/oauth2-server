@@ -1,20 +1,10 @@
+import * as Bluebird from 'bluebird';
 import { NextFunction, Request, Response, Router } from 'express';
-
-import { Grants, GrantType, Username } from '../grants/types';
+import * as basicAuthLib from 'basic-auth';
+import { Grants, GrantType, GrantValidatedResponse, Username } from '../grants/types';
 import { Stores } from '../stores/types';
-import { GrantNotAllowed } from '../stores/errors';
+import { GrantNotAllowedError } from '../stores/errors';
 import { RouterConfig } from '../../config/types';
-
-const DUMMY_SUCCESS_TOKEN = {
-  'access_token': '2YotnFZFEjr1zCsicMWpAA',
-  'token_type': 'example',
-  'expires_in': 3600
-};
-
-type GrantValidationResult = {
-  validated: boolean,
-  reason?: string
-}
 
 export class TokenHandler {
   constructor(
@@ -31,7 +21,7 @@ export class TokenHandler {
       case GrantType.password:
         return this.stores.keyStore.isEnabled(account).then(mfaEnabled => {
           if (mfaEnabled) {
-            throw new GrantNotAllowed(GrantType.mfaPassword);
+            throw new GrantNotAllowedError(GrantType.mfaPassword);
           }
           return true;
         });
@@ -40,12 +30,11 @@ export class TokenHandler {
     }
   }
 
-  protected authorize(validation: Promise<Username>, grantType: GrantType): Promise<GrantValidationResult> {
-    return validation
-      .then(username => this.validateGrantType(grantType, username))
-      .then(
-        result => ({ validated: result }),
-        err => ({ validated: false, reason: err.message })
+  protected authorize(validation: Promise<Username>, grantType: GrantType): Promise<GrantValidatedResponse> {
+    return Bluebird.resolve(validation)
+      .tap(
+        validationResult => this.validateGrantType(grantType, validationResult.user.username),
+      err => ({ validated: false, reason: err.message })
       );
   }
 
@@ -70,7 +59,20 @@ export class TokenHandler {
           validation = this.grants.mfaPassword.validate({
             username: req.body.username,
             password: req.body.password
-          }, req.header(this.routerConfig.mfaTokenHeader))
+          }, req.header(this.routerConfig.mfaTokenHeader));
+          break;
+        case GrantType.authorizationCode:
+          const authHeader = basicAuthLib.parse(req.header('Authorization'));
+          validation = this.grants.authorizationCode.validate(
+            {
+              username: authHeader.name,
+              password: authHeader.pass
+            },
+            req.body.code,
+            {
+              redirectURI: req.body.redirect_uri
+            }
+          );
       }
 
       const result = await this.authorize(validation, grantType);
@@ -79,7 +81,12 @@ export class TokenHandler {
         return res.status(401).send(result.reason || 'Authorization Failed.');
       }
 
-      res.json(DUMMY_SUCCESS_TOKEN);
+      res.json({
+        'access_token': '2YotnFZFEjr1zCsicMWpAA',
+        'token_type': 'example',
+        'expires_in': 3600,
+        user: result.user
+      });
 
     });
 

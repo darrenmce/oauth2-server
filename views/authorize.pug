@@ -1,0 +1,30 @@
+extends page.template.pug
+
+block head
+    title Register
+
+block body
+    h2 Authorize
+    form#register(method='POST' action=action)
+        label(for='username') Email Address:
+        input#username(type='text', placeholder='example@example.com', name='username')
+        label(for='password') Password:
+        input#password(type='password', name='password')
+        label(for='mfa') MFA (if enabled):
+        input#mfa(type='text', name='mfa')
+        button#submit(type='submit') Submit
+
+        if response_type
+            input#response_type(type='hidden', name='response_type', value=response_type)
+        if client_id
+            input#client_id(type='hidden', name='client_id', value=client_id)
+        if redirect_uri
+            input#redirect_uri(type='hidden', name='redirect_uri', value=redirect_uri)
+        if scope
+            input#scope(type='hidden', name='scope', value=scope)
+        if state
+            input#state(type='hidden', name='state', value=state)
+
+block foot
+    hr
+    p footer hello world

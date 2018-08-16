@@ -1,6 +1,6 @@
 import * as Bluebird from 'bluebird';
 import { IKeyStore } from '../stores/types';
-import { BasicAuth, Username } from './types';
+import { BasicAuth, GrantValidatedResponse } from './types';
 import { Password } from './Password';
 
 export class MFAPassword {
@@ -9,14 +9,17 @@ export class MFAPassword {
     private readonly keyStore: IKeyStore
   ) {}
 
-  validate(basicAuth: BasicAuth, mfaToken: string): PromiseLike<Username> {
+  validate(basicAuth: BasicAuth, mfaToken: string): PromiseLike<GrantValidatedResponse> {
     return Bluebird.resolve(this.passwordGrant.validate(basicAuth))
-      .then(username => {
-        if (!username) {
-          return undefined;
+      .then(grantValidatedResponse => {
+        if (!grantValidatedResponse.validated) {
+          return grantValidatedResponse;
         }
-        return this.keyStore.verify(username, mfaToken)
-          .then(result => result ? username : undefined);
+        return this.keyStore.verify(basicAuth.username, mfaToken)
+          .then(result => result ? grantValidatedResponse : {
+            validated: false,
+            reason: 'Authorization Failed'
+          });
       });
   }
 }
