@@ -1,6 +1,13 @@
 version: '2'
 services:
 
+  oauth2-server:
+    build: .
+    environment:
+      oauth-server_stores__redis__host: redis
+    links:
+      - redis
+
   redis:
     image: redis
     ports:
