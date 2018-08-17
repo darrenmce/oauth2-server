@@ -83,13 +83,6 @@ export enum OAuthErrorType {
   temporarilyUnavailable = 'temporarily_unavailable'
 }
 
-interface IOAuthError extends Error {
-  error: OAuthErrorType,
-  error_description?: string,
-  error_uri?: string,
-  toQueryString(state?: string): string
-}
-
 export class ResourceOwnerError extends Error {
   constructor(message: string) {
     super(message);
@@ -97,7 +90,7 @@ export class ResourceOwnerError extends Error {
   }
 }
 
-export class OAuthError extends Error implements IOAuthError {
+export class OAuthError extends Error {
   constructor(
     readonly error: OAuthErrorType,
     readonly error_description?: string,

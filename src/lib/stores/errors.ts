@@ -18,10 +18,3 @@ export class GrantNotAllowedError extends Error {
     Object.setPrototypeOf(this, new.target.prototype);
   }
 }
-
-export class AuthorizationFailedError extends Error {
-  constructor() {
-    super('Authorization Failed');
-    Object.setPrototypeOf(this, new.target.prototype);
-  }
-}
