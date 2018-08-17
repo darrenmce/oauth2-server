@@ -10,21 +10,18 @@ export class MFAPassword implements IGrant<MFAPasswordValidate> {
     private readonly keyStore: IKeyStore
   ) {}
 
-  validate({ passwordValidate, mfaToken}: MFAPasswordValidate): Promise<User> {
-    return Bluebird.resolve()
-      .then(() => {
-        if (!passwordValidate.username || !passwordValidate.username || !mfaToken) {
-          throw new OAuthError(OAuthErrorType.invalidRequest);
-        }
-      })
-      .then(() => this.passwordGrant.validate(passwordValidate))
-      .tap(() =>
-        this.keyStore.verify(passwordValidate.username, mfaToken)
-          .then(verified => {
-            if (!verified) {
-              throw new OAuthError(OAuthErrorType.accessDenied)
-            }
-          })
-      )
+  async validate({ passwordValidate, mfaToken}: MFAPasswordValidate): Promise<User> {
+      if (!passwordValidate.username || !passwordValidate.username || !mfaToken) {
+        throw new OAuthError(OAuthErrorType.invalidRequest);
+      }
+      const user = await this.passwordGrant.validate(passwordValidate);
+
+      const verifiedMFA = await this.keyStore.verify(passwordValidate.username, mfaToken);
+
+      if (!verifiedMFA) {
+        throw new OAuthError(OAuthErrorType.accessDenied)
+      }
+
+      return user;
   }
 }

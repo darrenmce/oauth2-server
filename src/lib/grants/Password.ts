@@ -7,22 +7,20 @@ export class Password implements IGrant<PasswordValidate> {
     private readonly credentialsStore: ICredentialsStore
   ) {}
 
-  validate(basicAuth: PasswordValidate): Promise<User> {
-    return Promise.resolve()
-      .then(() => {
-        if (!basicAuth.username || !basicAuth.password) {
-          throw new OAuthError(OAuthErrorType.invalidRequest);
-        }
-      })
-      .then(() => this.credentialsStore.validate(basicAuth))
-      .then(validated => {
-        if (!validated) {
-          throw new OAuthError(OAuthErrorType.accessDenied);
-        }
-        return {
-          username: basicAuth.username,
-          fullname: basicAuth.username
-        }
-      });
+  async validate(basicAuth: PasswordValidate): Promise<User> {
+    if (!basicAuth.username || !basicAuth.password) {
+      throw new OAuthError(OAuthErrorType.invalidRequest);
+    }
+
+    const validated = await this.credentialsStore.validate(basicAuth);
+
+    if (!validated) {
+      throw new OAuthError(OAuthErrorType.accessDenied);
+    }
+
+    return {
+      username: basicAuth.username,
+      fullname: basicAuth.username
+    }
   }
 }

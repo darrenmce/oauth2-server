@@ -26,7 +26,7 @@ export class AuthorizationCode implements IGrant<AuthorizationCodeValidate> {
 
     return {
       username: result.username,
-      fullname: result.username //TODO: fix this
+      fullname: result.username //TODO: fix these (all the grants)
     }
 
   }
