@@ -1,4 +1,3 @@
-import * as Bluebird from 'bluebird';
 import { IKeyStore } from '../stores/types';
 import { IGrant, MFAPasswordValidate, User } from './types';
 import { Password } from './Password';

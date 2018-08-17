@@ -10,12 +10,13 @@ import { getConfig } from './config';
 import { TokenHandler } from './lib/handlers/TokenHandler';
 
 import { Grants } from './lib/grants/types';
-import { AuthCodeStoreType, CredentialsStoreType, KeyStoreType, Stores } from './lib/stores/types';
+import { StoreType, Stores } from './lib/stores/types';
 import { RegisterHandler } from './lib/handlers/RegisterHandler';
 import { authCodeStoreFactory } from './lib/stores/auth-code-store-factory';
 import { AuthorizationCode } from './lib/grants/AuthorizationCode';
 import { AuthorizationCodeHandler } from './lib/handlers/AuthorizationCodeHandler';
 import { OAuthError } from './lib/handlers/errors';
+import { createDBClients } from './db';
 
 //extend the request type
 declare global {
@@ -28,14 +29,16 @@ declare global {
 
 const config = getConfig();
 
-const keyStore = keyStoreFactory(KeyStoreType.memory, {
+const dbClients = createDBClients(config.stores);
+
+const keyStore = keyStoreFactory(config.storeTypes.key, dbClients,{
   testMfa: '766s v7ay wjyi 26nf 3uk2 gyyn pzvz suvl'
 });
-const credentialsStore = credentialsStoreFactory(CredentialsStoreType.memory, {
+const credentialsStore = credentialsStoreFactory(config.storeTypes.credentials, dbClients,{
   test: '123',
   testMfa: 'abc'
 });
-const authCodeStore = authCodeStoreFactory(AuthCodeStoreType.memory);
+const authCodeStore = authCodeStoreFactory(config.storeTypes.authCode, dbClients);
 
 
 const stores: Stores = {

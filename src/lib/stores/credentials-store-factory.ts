@@ -1,8 +1,12 @@
-import { CredentialsStoreType, ICredentialsStore } from './types';
+import { StoreType, DBClients, ICredentialsStore } from './types';
 import { MemoryCredentialsStore } from './MemoryCredentialsStore';
+import { RedisCredentialsStore } from './RedisCredentialsStore';
 
-export function credentialsStoreFactory(type: CredentialsStoreType, seedData?: any): ICredentialsStore {
-  if (type === CredentialsStoreType.memory) {
-    return new MemoryCredentialsStore(seedData);
+export function credentialsStoreFactory(type: StoreType, dbClients: DBClients, seedData?: any): ICredentialsStore {
+  switch (type) {
+    case StoreType.memory:
+      return new MemoryCredentialsStore(seedData);
+    case StoreType.redis:
+      return new RedisCredentialsStore(dbClients.redis, 'cred');
   }
 }

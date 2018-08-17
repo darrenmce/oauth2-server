@@ -1,15 +1,13 @@
 import { BasicAuth, Username } from '../grants/types';
+import { RedisClient } from 'redis';
 
-export enum CredentialsStoreType {
-  memory = "MEMORY"
+export enum StoreType {
+  memory = "MEMORY",
+  redis = "REDIS"
 }
 
-export enum KeyStoreType {
-  memory = "MEMORY"
-}
-
-export enum AuthCodeStoreType {
-  memory = "MEMORY"
+export type DBClients = {
+  redis: RedisClient
 }
 
 export interface ICredentialsStore {

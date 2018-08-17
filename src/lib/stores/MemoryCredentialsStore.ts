@@ -21,7 +21,6 @@ export class MemoryCredentialsStore implements ICredentialsStore {
   }
 
   create({ username, password }: BasicAuth): Promise<boolean> {
-    console.log('ClientCredentials: creating user', username);
     if (this.users[username]) {
       return Promise.reject(new AccountExistsError());
     }
