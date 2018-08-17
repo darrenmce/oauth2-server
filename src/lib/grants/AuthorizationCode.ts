@@ -1,43 +1,32 @@
-import { AuthCode, AuthCodeConsume, IAuthorizationCodeStore, ICredentialsStore } from '../stores/types';
-import { BasicAuth, GrantValidatedResponse } from './types';
+import { IAuthorizationCodeStore, ICredentialsStore } from '../stores/types';
+import { AuthorizationCodeValidate, IGrant, User } from './types';
+import { OAuthError, OAuthErrorType } from '../handlers/errors';
 
-export class AuthorizationCode {
+export class AuthorizationCode implements IGrant<AuthorizationCodeValidate> {
   constructor(
     private readonly codeStore: IAuthorizationCodeStore,
     private readonly credentialsStore: ICredentialsStore
   ) {}
 
-  async validate(clientAuth: BasicAuth, authCode: AuthCode, authCodeParams: AuthCodeConsume): Promise<GrantValidatedResponse> {
+  async validate({ clientAuth, authCode, authCodeParams }: AuthorizationCodeValidate): Promise<User> {
     const clientAuthenticated = await this.credentialsStore.validate(clientAuth);
     if (!clientAuthenticated) {
-      return {
-        validated: false,
-        reason: 'Client not authenticated'
-      };
+      throw new OAuthError(OAuthErrorType.accessDenied)
     }
 
     const result = await this.codeStore.consume(authCode, authCodeParams);
 
     if (!result) {
-      return {
-        validated: false,
-        reason: 'Invalid authentication code'
-      };
+      throw new OAuthError(OAuthErrorType.invalidRequest)
     }
 
     if (result.clientId !== clientAuth.username) {
-      return {
-        validated: false,
-        reason: 'Client mismatch'
-      };
+      throw new OAuthError(OAuthErrorType.unauthorizedClient)
     }
 
     return {
-      validated: true,
-      user: {
-        username: result.username,
-        fullname: result.username //TODO: fix this
-      }
+      username: result.username,
+      fullname: result.username //TODO: fix this
     }
 
   }

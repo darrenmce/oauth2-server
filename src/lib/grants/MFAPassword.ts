@@ -1,25 +1,30 @@
 import * as Bluebird from 'bluebird';
 import { IKeyStore } from '../stores/types';
-import { BasicAuth, GrantValidatedResponse } from './types';
+import { IGrant, MFAPasswordValidate, User } from './types';
 import { Password } from './Password';
+import { OAuthError, OAuthErrorType } from '../handlers/errors';
 
-export class MFAPassword {
+export class MFAPassword implements IGrant<MFAPasswordValidate> {
   constructor(
     private readonly passwordGrant: Password,
     private readonly keyStore: IKeyStore
   ) {}
 
-  validate(basicAuth: BasicAuth, mfaToken: string): PromiseLike<GrantValidatedResponse> {
-    return Bluebird.resolve(this.passwordGrant.validate(basicAuth))
-      .then(grantValidatedResponse => {
-        if (!grantValidatedResponse.validated) {
-          return grantValidatedResponse;
+  validate({ passwordValidate, mfaToken}: MFAPasswordValidate): Promise<User> {
+    return Bluebird.resolve()
+      .then(() => {
+        if (!passwordValidate.username || !passwordValidate.username || !mfaToken) {
+          throw new OAuthError(OAuthErrorType.invalidRequest);
         }
-        return this.keyStore.verify(basicAuth.username, mfaToken)
-          .then(result => result ? grantValidatedResponse : {
-            validated: false,
-            reason: 'Authorization Failed'
-          });
-      });
+      })
+      .then(() => this.passwordGrant.validate(passwordValidate))
+      .tap(() =>
+        this.keyStore.verify(passwordValidate.username, mfaToken)
+          .then(verified => {
+            if (!verified) {
+              throw new OAuthError(OAuthErrorType.accessDenied)
+            }
+          })
+      )
   }
 }

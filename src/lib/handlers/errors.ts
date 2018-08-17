@@ -83,6 +83,19 @@ export enum OAuthErrorType {
   temporarilyUnavailable = 'temporarily_unavailable'
 }
 
+const statusCodes = {
+  invalidGrant: 400,
+  invalidClient: 400,
+  invalidRequest: 400,
+  unsupportedGrantType: 400,
+  unauthorizedClient: 401,
+  accessDenied: 401,
+  unsupportedResponseType: 400,
+  invalidScope: 400,
+  serverError: 500,
+  temporarilyUnavailable: 503
+};
+
 export class ResourceOwnerError extends Error {
   constructor(message: string) {
     super(message);
@@ -91,12 +104,15 @@ export class ResourceOwnerError extends Error {
 }
 
 export class OAuthError extends Error {
+  public statusCode: number;
+
   constructor(
     readonly error: OAuthErrorType,
     readonly error_description?: string,
-    readonly error_uri?: string
+    readonly error_uri?: string,
   ) {
     super(error);
+    this.statusCode = statusCodes[error] || 400;
     Object.setPrototypeOf(this, new.target.prototype);
   }
   toQueryString(state?: string): string {
