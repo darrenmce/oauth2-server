@@ -1,9 +1,8 @@
 import * as Bluebird from 'bluebird';
 import { NextFunction, Request, Response, Router } from 'express';
 import * as basicAuthLib from 'basic-auth';
-import { Grants, User, SupportedGrantType, UnsupportedGrantType, Username, IGrant } from '../grants/types';
+import { Grants, User, SupportedGrantType, UnsupportedGrantType, Username } from '../grants/types';
 import { Stores } from '../stores/types';
-import { RouterConfig } from '../../config/types';
 import { OAuthError, OAuthErrorType } from './errors';
 
 type GrantRequestBody = {

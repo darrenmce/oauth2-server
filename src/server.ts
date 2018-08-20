@@ -1,21 +1,23 @@
+import * as express from 'express';
+import * as bodyParser from 'body-parser';
+
+import { createStores } from './lib/stores';
+import { createGrants } from './lib/grants';
+
 import { TokenHandler } from './lib/handlers/TokenHandler';
 import { RegisterHandler } from './lib/handlers/RegisterHandler';
 import { AuthorizationCodeHandler } from './lib/handlers/AuthorizationCodeHandler';
-import * as express from 'express';
-import * as bodyParser from 'body-parser';
 import { OAuthError } from './lib/handlers/errors';
-import { Express } from 'express';
+
 import { OAuthConfig } from './config/types';
 import { DBClients } from './lib/stores/types';
-import { createStores } from './lib/stores';
-import { createGrants } from './lib/grants';
 
 type CreateServerParams = {
   config: OAuthConfig,
   dbClients: DBClients
 }
 
-export function createServer({ config, dbClients }: CreateServerParams): Express {
+export function createServer({ config, dbClients }: CreateServerParams): express.Express {
   const stores = createStores(config.stores, dbClients);
   const grants = createGrants(stores);
 
