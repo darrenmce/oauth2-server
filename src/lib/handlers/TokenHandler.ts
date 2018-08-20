@@ -6,15 +6,22 @@ import { Stores } from '../stores/types';
 import { RouterConfig } from '../../config/types';
 import { OAuthError, OAuthErrorType } from './errors';
 
+type GrantRequestBody = {
+  username?: string,
+  password?: string,
+  mfa_token?: string,
+  code?: string,
+  redirect_uri?: string,
+  state?: string
+}
+
 type GrantRequestParams = {
-  body: any,
+  body: GrantRequestBody,
   authHeader: string,
-  tokenHeader: string
 }
 
 export class TokenHandler {
   constructor(
-    private readonly routerConfig: RouterConfig,
     private readonly grants: Grants,
     private readonly stores: Stores
   ) {}
@@ -42,7 +49,7 @@ export class TokenHandler {
     }
   }
 
-  protected authorize(grantType: SupportedGrantType, { body, authHeader, tokenHeader }: GrantRequestParams): Promise<User> {
+  protected authorize(grantType: SupportedGrantType, { body, authHeader }: GrantRequestParams): Promise<User> {
 
     switch(grantType) {
       case SupportedGrantType.password:
@@ -56,7 +63,7 @@ export class TokenHandler {
             username: body.username,
             password: body.password
           },
-          mfaToken: tokenHeader
+          mfaToken: body.mfa_token
         });
       case SupportedGrantType.authorizationCode:
         const auth = basicAuthLib.parse(authHeader);
@@ -77,14 +84,13 @@ export class TokenHandler {
   getRouter(): Router {
     const router = Router();
 
-    router.post('/token', (req: Request, res: Response, next: NextFunction) => {
+    router.post('/', (req: Request, res: Response, next: NextFunction) => {
       const grantType = req.body.grant_type;
 
       Bluebird.resolve()
         .then(() => this.validateGrantType(grantType))
         .then(() => this.authorize(grantType, {
           body: req.body,
-          tokenHeader: req.header(this.routerConfig.mfaTokenHeader),
           authHeader: req.header('authorization')
         }))
         .tap(user => this.validateUserGrantType(grantType, user.username))

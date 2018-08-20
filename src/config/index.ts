@@ -4,15 +4,13 @@ import { StoreType } from '../lib/stores/types';
 const { name } = require('../../package.json');
 
 const defaultConfig: OAuthConfig = {
-  router: {
-    mfaTokenHeader: 'X-Rangle-MFA'
-  },
-  storeTypes: {
+  port: 8080,
+  stores: {
     authCode: StoreType.memory,
     key: StoreType.memory,
     credentials: StoreType.memory
   },
-  stores: {
+  dbs: {
     redis: {
       host: 'localhost',
       port: 6379
