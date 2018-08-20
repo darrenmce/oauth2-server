@@ -11,4 +11,9 @@ First target:
 
 ### Getting Started
 
-- Run `npm start` to get the server running.
+- Run `npm run build && npm start` to get the server running.
+- Or for dev mode, `npm run dev`
+
+### Example test client
+
+- See https://github.com/darrenmce/oauth2-test-client
