@@ -1,5 +1,4 @@
 import * as authenticator from 'authenticator';
-import * as R from 'ramda';
 import { AccountDoesNotExistError, AccountExistsError } from './errors';
 import { IKeyStore, MFAKey } from './types';
 
@@ -7,15 +6,10 @@ type KeyStoreMap = { [account: string]: Promise<MFAKey> };
 
 const VERIFY_DELTA_THRESHOLD = 2;
 
-type KeySeedData = { [account: string]: string };
-
 export class MemoryKeyStore implements IKeyStore {
   private keys: KeyStoreMap;
-  constructor(seedData?: KeySeedData) {
+  constructor() {
     this.keys = {};
-    if (seedData) {
-      this.keys = R.map(key => Promise.resolve(key), seedData);
-    }
   }
 
   private generateKey(): Promise<MFAKey> {

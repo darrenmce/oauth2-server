@@ -1,23 +1,14 @@
 import * as bcrypt from 'bcryptjs';
-import * as R from 'ramda';
 import { ICredentialsStore } from './types';
 import { BasicAuth, Username } from '../grants/types';
 import { AccountDoesNotExistError, AccountExistsError } from './errors';
 
 type MemoryCredentialsMap = { [account: string]: Promise<string> };
 
-type CredentialsSeedData = { [account: string]: string };
-
 export class MemoryCredentialsStore implements ICredentialsStore {
   private users: MemoryCredentialsMap;
-  constructor(seedData?: CredentialsSeedData) {
+  constructor() {
     this.users = {};
-    if (seedData) {
-      R.forEachObjIndexed(
-        (password, username: string) => this.create({ username, password }),
-        seedData
-      );
-    }
   }
 
   create({ username, password }: BasicAuth): Promise<boolean> {
