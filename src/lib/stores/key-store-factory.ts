@@ -5,7 +5,7 @@ import { RedisKeyStore } from './RedisKeyStore';
 export function keyStoreFactory(type: StoreType, dbClients: DBClients, seedData?: any): IKeyStore {
   switch (type) {
     case StoreType.memory:
-      return new MemoryKeyStore(seedData);
+      return new MemoryKeyStore();
     case StoreType.redis:
       return new RedisKeyStore(dbClients.redis, 'mfa')
   }
