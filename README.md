@@ -13,6 +13,7 @@ First target:
 
 - Run `npm run build && npm start` to get the server running.
 - Or for dev mode, `npm run dev`
+- Optionally create a `.oauth-serverrc` rc configuration file
 
 ### Example test client
 
