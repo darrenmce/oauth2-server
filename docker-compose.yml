@@ -7,8 +7,13 @@ services:
       oauth-server_stores__redis__host: redis
     links:
       - redis
+    volumes:
+      - ./:/app
+    ports:
+      - "8080:8080"
+
 
   redis:
     image: redis
     ports:
-    - "6379:6379"
+      - "6379:6379"
