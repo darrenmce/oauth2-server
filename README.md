@@ -13,7 +13,7 @@ First target:
 
 - Run `npm run build && npm start` to get the server running.
 - Or for dev mode, `npm run dev`
-- Optionally create a `.oauth-serverrc` rc configuration file
+- Optionally create a `.oauth-serverrc` rc configuration file, which is described in [src/config.index.ts](./src/config/index.ts "OAuth Server Configuration")
 
 ### Example test client
 
