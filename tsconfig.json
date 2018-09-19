@@ -18,7 +18,7 @@
       "node_modules/@types",
       "src/@types"
     ],
-    "lib": ["es6"]
+    "lib": ["es2017"]
   },
   "include": [
     "src/index.ts",
