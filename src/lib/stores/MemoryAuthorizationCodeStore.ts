@@ -10,7 +10,7 @@ export class MemoryAuthorizationCodeStore implements IAuthorizationCodeStore {
 
   constructor(authCodeTTLSeconds: number = DEFAULT_TTL_SECONDS) {
     this.codes = new NodeCache({ stdTTL: authCodeTTLSeconds });
-    this.tokenGenerator = new TokenGenerator;
+    this.tokenGenerator = new TokenGenerator();
   }
 
   generate(authCodeValues: AuthCodeValues): Promise<AuthCode> {

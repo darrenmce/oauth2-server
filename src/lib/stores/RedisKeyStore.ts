@@ -28,7 +28,7 @@ export class RedisKeyStore implements IKeyStore {
       throw new AccountExistsError();
     }
 
-    const key = RedisKeyStore.generateKey();
+    const key = await RedisKeyStore.generateKey();
     await set(this.formatKey(username), key);
     return key;
   }

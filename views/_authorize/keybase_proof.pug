@@ -1,0 +1,11 @@
+if keybase_challenge
+    div
+        p Decode the following message (keybase user: #{keybase_username}):
+        pre #{keybase_challenge}
+    form#authorize_gpg_proof(method='POST' action=action)
+        label(for='decodedMessage') Decoded Message:
+        input#decodedMessage(type='text', name='decodedMessage')
+        button(type='submit') Submit
+        input(type='hidden', name='challengeId', value=challengeId)
+        input(type='hidden', name='authType', value=keybaseProofAuthType)
+        include hidden_form_elements

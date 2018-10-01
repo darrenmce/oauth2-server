@@ -1,48 +1,63 @@
 import * as bcrypt from 'bcryptjs';
-import { promisify } from 'bluebird';
+import * as Bluebird from 'bluebird';
 import { RedisClient } from 'redis';
 
-import { ICredentialsStore } from './types';
+import { CredentialsMetaData, ICredentialsStore } from './types';
 import { BasicAuth, Username } from '../grants/types';
 import { AccountDoesNotExistError, AccountExistsError } from './errors';
 
 
 export class RedisCredentialsStore implements ICredentialsStore {
+  private rGet: (key: string) => Promise<string>;
+  private rSet: (key: string, value: string) => Promise<void>;
+  private rExists: (key: string) => Promise<boolean>;
+
   constructor(
     private readonly redis: RedisClient,
     private readonly namespace: string,
-  ) {}
+  ) {
+    this.rGet = Bluebird.promisify(this.redis.get).bind(this.redis);
+    this.rSet = Bluebird.promisify(this.redis.set).bind(this.redis);
+    this.rExists = Bluebird.promisify(this.redis.exists).bind(this.redis);
+  }
 
-  protected formatKey(key: string):string {
+  protected formatKey(key: string): string {
     return `${this.namespace}:${key}`;
   }
 
-  async create({ username, password }: BasicAuth): Promise<boolean> {
-    const set = promisify(this.redis.set).bind(this.redis);
+  protected formatMetaKey(key: string): string {
+    return `${this.namespace}:meta:${key}`;
+  }
 
+  async create({ username, password }: BasicAuth, metaData: CredentialsMetaData): Promise<boolean> {
     if (await this.exists(username)) {
       throw new AccountExistsError();
     }
 
     const passHash = await bcrypt.hash(password, 8);
 
-    return set(this.formatKey(username), passHash)
+    return Bluebird.all([
+      this.rSet(this.formatKey(username), passHash),
+      this.rSet(this.formatMetaKey(username), JSON.stringify(metaData))
+      ])
       .then(() => true);
   }
 
   exists(username: Username): Promise<boolean> {
-    const exists = promisify(this.redis.exists).bind(this.redis);
-    return exists(this.formatKey(username));
+    return this.rExists(this.formatKey(username));
   }
 
   async validate({ username, password }: BasicAuth): Promise<boolean> {
-    const get = promisify(this.redis.get).bind(this.redis);
-
     if (!await this.exists(username)) {
       throw new AccountDoesNotExistError();
     }
 
-    return get(this.formatKey(username))
+    return this.rGet(this.formatKey(username))
       .then(passHash => bcrypt.compare(password, passHash))
+  }
+
+  getMetadata(username: Username): Promise<CredentialsMetaData> {
+    return this.rGet(this.formatMetaKey(username))
+      .then(JSON.parse);
   }
 }

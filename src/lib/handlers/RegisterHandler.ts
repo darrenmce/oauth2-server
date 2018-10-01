@@ -1,6 +1,6 @@
 import * as authenticator from 'authenticator';
 import * as qrcode from 'qrcode';
-import { MFAKey, Stores } from '../stores/types';
+import { CredentialsMetaData, MFAKey, Stores } from '../stores/types';
 import { NextFunction, Request, Response, Router } from 'express';
 
 export type RegistrationPayload = {
@@ -84,7 +84,14 @@ export class RegisterHandler {
       }
 
       const username = req.body.username;
-      await this.stores.credentialsStore.create({username: username, password: req.body.password});
+      const metaData: CredentialsMetaData = {};
+      if (req.body.keybase_username) {
+        metaData.keybase_username = req.body.keybase_username;
+      }
+      await this.stores.credentialsStore.create(
+        {username: username, password: req.body.password},
+        metaData
+        );
       let qrcode;
       if (req.body.mfa) {
         const mfaKey = await this.stores.keyStore.create(username);
