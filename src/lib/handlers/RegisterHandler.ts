@@ -1,7 +1,8 @@
-import * as authenticator from 'authenticator';
-import * as qrcode from 'qrcode';
+import authenticator from 'authenticator';
+import qrcode from 'qrcode';
 import { CredentialsMetaData, MFAKey, Stores } from '../stores/types';
-import { NextFunction, Request, Response, Router } from 'express';
+import { Request, Response, Router } from 'express';
+import { IRequestHandler } from '../../types/request-handler';
 
 export type RegistrationPayload = {
   username: string,
@@ -34,7 +35,7 @@ const PASSWORD_RULES = [
 
 const HARDCODED_ISSUER = 'Rangle Test Auth';
 
-export class RegisterHandler {
+export class RegisterHandler implements IRequestHandler {
   protected static testPassword(password: string): boolean {
     return PASSWORD_RULES.reduce((valid, regex) => {
       if (!valid) {
@@ -70,14 +71,14 @@ export class RegisterHandler {
     return { result: true };
   }
 
-  getRouter(): Router {
+  public getRouter(): Router {
     const router = Router();
 
-    router.get('/', (req: Request, res: Response, next: NextFunction) => {
+    router.get('/', (_req: Request, res: Response) => {
       res.render('register');
     });
 
-    router.post('/', async (req: Request, res: Response, next: NextFunction) => {
+    router.post('/', async (req: Request, res: Response) => {
       const validation = await this.validateRegistration(req.body as RegistrationPayload);
       if (!validation.result) {
         return res.render('register', { message: `Registration Failed: ${validation.reason}`});

@@ -1,108 +1,123 @@
-import * as Bluebird from 'bluebird';
-import { NextFunction, Request, Response, Router } from 'express';
-import * as basicAuthLib from 'basic-auth';
-import { Grants, User, SupportedGrantType, UnsupportedGrantType, Username } from '../grants/types';
+import { Request, Response, Router } from 'express';
+import basicAuthLib from 'basic-auth';
+import {
+  AuthorizationCodeValidate,
+  Grants,
+  GrantType,
+  IGrant,
+  MFAPasswordValidate,
+  PasswordValidate,
+  UNSUPPORTED_GRANT,
+  User,
+  Username
+} from '../grants/types';
 import { Stores } from '../stores/types';
 import { OAuthError, OAuthErrorType } from './errors';
-
-type GrantRequestBody = {
-  username?: string,
-  password?: string,
-  mfa_token?: string,
-  code?: string,
-  redirect_uri?: string,
-  state?: string
-}
+import { IRequestHandler } from '../../types/request-handler';
+import {
+  GrantRequestBody,
+  validateAuthorizationCodeGrantRequestBody,
+  validateMFAGrantRequestBody,
+  validatePasswordGrantRequestBody
+} from '../grants/validate';
 
 type GrantRequestParams = {
   body: GrantRequestBody,
   authHeader: string,
 }
 
-export class TokenHandler {
+export class TokenHandler implements IRequestHandler {
   constructor(
     private readonly grants: Grants,
     private readonly stores: Stores
   ) {}
 
   protected validateGrantType(requestedGrantType: string): void {
-    if (!(<any>Object).values(SupportedGrantType).includes(requestedGrantType)) {
-      if (!(<any>Object).values(UnsupportedGrantType).includes(requestedGrantType)) {
-        throw new OAuthError(OAuthErrorType.invalidGrant);
-      }
+    if (!this.grants[requestedGrantType]) {
+      throw new OAuthError(OAuthErrorType.invalidGrant);
+    }
+    if (this.grants[requestedGrantType] === UNSUPPORTED_GRANT) {
       throw new OAuthError(OAuthErrorType.unsupportedGrantType);
     }
   }
 
-  protected validateUserGrantType(grantType: SupportedGrantType, username: Username): Promise<void> {
+  protected async validateUserGrantType(grantType: GrantType, username: Username): Promise<void> {
     if (!username) {
       return Promise.reject(new OAuthError(OAuthErrorType.invalidRequest));
     }
     switch (grantType) {
-      case SupportedGrantType.password:
-        return this.stores.keyStore.isEnabled(username).then(mfaEnabled => {
-          if (mfaEnabled) {
-            throw new OAuthError(OAuthErrorType.invalidGrant, `use ${SupportedGrantType.mfaPassword} instead`);
-          }
-        });
+      case GrantType.password: {
+        const mfaEnabled = await this.stores.keyStore.isEnabled(username);
+        if (mfaEnabled) {
+          throw new OAuthError(OAuthErrorType.invalidGrant, `use ${GrantType.mfaPassword} instead`);
+        }
+      }
     }
   }
 
-  protected authorize(grantType: SupportedGrantType, { body, authHeader }: GrantRequestParams): Promise<User> {
-
+  protected async authorize(grantType: GrantType, { body, authHeader }: GrantRequestParams): Promise<User> {
     switch(grantType) {
-      case SupportedGrantType.password:
-        return this.grants.password.validate({
-          username: body.username,
-          password: body.password
+      case GrantType.password: {
+        const validatedBody = await validatePasswordGrantRequestBody(body);
+        return (this.grants[GrantType.password] as IGrant<PasswordValidate>).validate({
+          username: validatedBody.username,
+          password: validatedBody.password
         });
-      case SupportedGrantType.mfaPassword:
-        return this.grants.mfaPassword.validate({
+      }
+      case GrantType.mfaPassword: {
+        const validatedBody = await validateMFAGrantRequestBody(body);
+        return (this.grants[GrantType.mfaPassword] as IGrant<MFAPasswordValidate>).validate({
           passwordValidate: {
-            username: body.username,
-            password: body.password
+            username: validatedBody.username,
+            password: validatedBody.password
           },
-          mfaToken: body.mfa_token
+          mfaToken: validatedBody.mfa_token
         });
-      case SupportedGrantType.authorizationCode:
+      }
+      case GrantType.authorizationCode: {
         const auth = basicAuthLib.parse(authHeader);
-        return this.grants.authorizationCode.validate({
+        const validatedBody = await validateAuthorizationCodeGrantRequestBody(body);
+        return (this.grants[GrantType.authorizationCode] as IGrant<AuthorizationCodeValidate>).validate({
           clientAuth: {
             username: auth.name,
             password: auth.pass
           },
-          authCode: body.code,
+          authCode: validatedBody.code,
           authCodeParams: {
-            redirectURI: body.redirect_uri
+            redirectURI: validatedBody.redirect_uri
           }
         });
+      }
+      case GrantType.clientCredentials: {
+        throw new OAuthError(OAuthErrorType.invalidGrant, 'not yet implemented');
+      }
     }
   }
 
+  protected async tokenHandler(req: Request, res: Response) {
+    const grantType = req.body.grant_type;
 
-  getRouter(): Router {
+    await this.validateGrantType(grantType);
+
+    const user = await this.authorize(grantType, {
+      body: req.body,
+      authHeader: req.header('authorization')
+    });
+
+    await this.validateUserGrantType(grantType, user.username);
+
+    res.json({
+      'access_token': '2YotnFZFEjr1zCsicMWpAA',
+      'token_type': 'example',
+      'expires_in': 3600,
+      user
+    });
+  }
+
+  public getRouter(): Router {
     const router = Router();
 
-    router.post('/', (req: Request, res: Response, next: NextFunction) => {
-      const grantType = req.body.grant_type;
-
-      Bluebird.resolve()
-        .then(() => this.validateGrantType(grantType))
-        .then(() => this.authorize(grantType, {
-          body: req.body,
-          authHeader: req.header('authorization')
-        }))
-        .tap(user => this.validateUserGrantType(grantType, user.username))
-        .then(user => {
-          res.json({
-            'access_token': '2YotnFZFEjr1zCsicMWpAA',
-            'token_type': 'example',
-            'expires_in': 3600,
-            user
-          });
-        })
-        .catch(next);
-    });
+    router.post('/', this.tokenHandler.bind(this));
 
     return router;
   }

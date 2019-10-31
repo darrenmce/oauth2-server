@@ -1,5 +1,5 @@
-import * as TokenGenerator from 'uuid-token-generator';
-import * as NodeCache from 'node-cache';
+import TokenGenerator from 'uuid-token-generator';
+import NodeCache from 'node-cache';
 import { AuthCode, AuthCodeConsume, AuthCodeValues, IAuthorizationCodeStore } from './types';
 
 const DEFAULT_TTL_SECONDS = 60 * 60; //1hr

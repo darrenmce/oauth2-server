@@ -1,16 +1,17 @@
-import * as Bluebird from 'bluebird';
-import * as rp from 'request-promise';
+import Bluebird from 'bluebird';
+import rp from 'request-promise';
 import { EncryptionProof, Stores } from '../stores/types';
 import { NextFunction, Request, Response, Router } from 'express';
 import { BasicAuth, Username } from '../grants/types';
 import { OAuthError, OAuthErrorType } from './errors';
+import { IRequestHandler } from '../../types/request-handler';
 
 enum AuthorizationActionRoutes {
   usernamePasswordMFA = 'usernamePasswordMFA',
   keybaseProof = 'keybaseProof'
 }
 
-export class AuthorizationCodeHandler {
+export class AuthorizationCodeHandler implements IRequestHandler {
 
   protected static validateRequest(authType: AuthorizationActionRoutes, body: any): void {
     // TODO: implement `state`
@@ -87,14 +88,14 @@ export class AuthorizationCodeHandler {
     const router = Router();
 
 
-    router.get('/', (req: Request, res: Response, next: NextFunction) => {
+    router.get('/', (req: Request, res: Response) => {
       res.render('authorize', {
         ...req.query,
         action: req.baseUrl
       });
     });
 
-    router.post('/', async (req: Request, res: Response, next: NextFunction) => {
+    router.post('/', async (req: Request, res: Response) => {
       const { username } = req.body;
 
       const userExists = await this.stores.credentialsStore.exists(username);

@@ -1,5 +1,5 @@
-import * as bcrypt from 'bcryptjs';
-import * as Bluebird from 'bluebird';
+import bcrypt from 'bcryptjs';
+import Bluebird from 'bluebird';
 import { RedisClient } from 'redis';
 
 import { CredentialsMetaData, ICredentialsStore } from './types';
@@ -29,34 +29,36 @@ export class RedisCredentialsStore implements ICredentialsStore {
     return `${this.namespace}:meta:${key}`;
   }
 
-  async create({ username, password }: BasicAuth, metaData: CredentialsMetaData): Promise<boolean> {
+  public async create({ username, password }: BasicAuth, metaData: CredentialsMetaData): Promise<true> {
     if (await this.exists(username)) {
       throw new AccountExistsError();
     }
 
     const passHash = await bcrypt.hash(password, 8);
 
-    return Bluebird.all([
+    await Bluebird.all([
       this.rSet(this.formatKey(username), passHash),
       this.rSet(this.formatMetaKey(username), JSON.stringify(metaData))
-      ])
-      .then(() => true);
+    ]);
+
+    return true;
   }
 
   exists(username: Username): Promise<boolean> {
     return this.rExists(this.formatKey(username));
   }
 
-  async validate({ username, password }: BasicAuth): Promise<boolean> {
+  public async validate({ username, password }: BasicAuth): Promise<boolean> {
     if (!await this.exists(username)) {
       throw new AccountDoesNotExistError();
     }
 
-    return this.rGet(this.formatKey(username))
-      .then(passHash => bcrypt.compare(password, passHash))
+    const passHash = await this.rGet(this.formatKey(username));
+
+    return await bcrypt.compare(password, passHash);
   }
 
-  getMetadata(username: Username): Promise<CredentialsMetaData> {
+  public async getMetadata(username: Username): Promise<CredentialsMetaData> {
     return this.rGet(this.formatMetaKey(username))
       .then(JSON.parse);
   }

@@ -1,4 +1,4 @@
-import * as authenticator from 'authenticator';
+import authenticator from 'authenticator';
 import { promisify } from 'bluebird';
 import { RedisClient } from 'redis';
 

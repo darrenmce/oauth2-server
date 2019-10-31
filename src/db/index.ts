@@ -1,8 +1,8 @@
-import * as redis from 'redis';
+import redis from 'redis';
 import { dbConfig } from '../config/types';
 import { DBClients } from '../lib/stores/types';
 
-export function createDBClients(config: dbConfig): DBClients {
+export async function createDBClients(config: dbConfig): Promise<DBClients> {
   return {
     redis: redis.createClient(config.redis)
   }

@@ -1,4 +1,4 @@
-import * as bcrypt from 'bcryptjs';
+import bcrypt from 'bcryptjs';
 import { CredentialsMetaData, ICredentialsStore } from './types';
 import { BasicAuth, Username } from '../grants/types';
 import { AccountDoesNotExistError, AccountExistsError } from './errors';

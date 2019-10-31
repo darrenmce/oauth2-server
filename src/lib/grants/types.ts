@@ -8,10 +8,12 @@ export type BasicAuth = {
 }
 
 export type PasswordValidate = BasicAuth;
+
 export type MFAPasswordValidate = {
   passwordValidate: PasswordValidate,
   mfaToken: string
 }
+
 export type AuthorizationCodeValidate = {
   clientAuth: BasicAuth,
   authCode: AuthCode,
@@ -21,19 +23,17 @@ export type AuthorizationCodeValidate = {
 export type GrantValidate = PasswordValidate | MFAPasswordValidate | AuthorizationCodeValidate;
 
 export interface IGrant<T> {
-  validate(T): Promise<User>
-}
-export type Grants = {
-  [grant: string]: IGrant<GrantValidate>
+  validate(grantData: T): Promise<User>
 }
 
-export enum SupportedGrantType {
+export const UNSUPPORTED_GRANT = 'unsupported_grant';
+
+export type Grants = Record<GrantType, IGrant<GrantValidate> | typeof UNSUPPORTED_GRANT>;
+
+export enum GrantType {
   password = "password",
-  mfaPassword = "urn:rangle.io:oauth2:grant_type:mfa_password",
-  authorizationCode = "authorization_code"
-}
-
-export enum UnsupportedGrantType {
+  mfaPassword = "urn:darrenmce:oauth2:grant_type:mfa_password",
+  authorizationCode = "authorization_code",
   clientCredentials = "client_credentials"
 }
 

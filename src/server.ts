@@ -1,5 +1,5 @@
-import * as express from 'express';
-import * as bodyParser from 'body-parser';
+import express from 'express';
+import bodyParser from 'body-parser';
 
 import { createStores } from './lib/stores';
 import { createGrants } from './lib/grants';
@@ -17,7 +17,7 @@ type CreateServerParams = {
   dbClients: DBClients
 }
 
-export function createServer({ config, dbClients }: CreateServerParams): express.Express {
+export async function createServer({ config, dbClients }: CreateServerParams): Promise<express.Express> {
   const stores = createStores(config.stores, dbClients);
   const grants = createGrants(stores);
 
@@ -35,11 +35,11 @@ export function createServer({ config, dbClients }: CreateServerParams): express
   app.use('/token', tokenRouter);
   app.use('/register', registerRouter);
 
-  app.get('/login', (req, res) => {
+  app.get('/login', (_req, res) => {
     res.render('login');
   });
 
-  app.use((err, req, res, next) => {
+  app.use((err, _req, res, next) => {
     if (err instanceof OAuthError && !res.headersSent) {
       return res.status(err.statusCode).send(`${err.message}${err.error_description ? ' - ' + err.error_description : ''}`);
     }

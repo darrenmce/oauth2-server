@@ -1,4 +1,4 @@
-import * as TokenGenerator from 'uuid-token-generator';
+import TokenGenerator from 'uuid-token-generator';
 import { promisify } from 'bluebird';
 import { RedisClient } from 'redis';
 import { AuthCode, AuthCodeConsume, AuthCodeValues, IAuthorizationCodeStore } from './types';
@@ -33,7 +33,7 @@ export class RedisAuthorizationCodeStore implements IAuthorizationCodeStore {
     private readonly namespace: string,
     private authCodeTTLSeconds: number = DEFAULT_TTL_SECONDS
   ) {
-    this.tokenGenerator = new TokenGenerator;
+    this.tokenGenerator = new TokenGenerator();
   }
 
   protected formatKey(key: string):string {

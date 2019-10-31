@@ -1,4 +1,4 @@
-import * as authenticator from 'authenticator';
+import authenticator from 'authenticator';
 import { AccountDoesNotExistError, AccountExistsError } from './errors';
 import { IKeyStore, MFAKey } from './types';
 

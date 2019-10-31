@@ -1,30 +1,31 @@
 {
   "compilerOptions": {
+    "target": "es2017",
     "module": "commonjs",
-    "target": "es5",
-    "noImplicitAny": false,
-    "moduleResolution": "node",
+    "lib": ["es2017"],
+    "allowJs": false,
     "sourceMap": true,
-    "outDir": "dist",
-    "baseUrl": ".",
-    "paths": {
-      "*": [
-        "node_modules/*",
-        "src/@types/*"
-      ]
-    },
-    "typeRoots": [
-      "@types",
-      "node_modules/@types",
-      "src/@types"
-    ],
-    "lib": ["es2017"]
+    "noImplicitAny": false,
+    "forceConsistentCasingInFileNames": true,
+    "noImplicitThis": true,
+    "suppressImplicitAnyIndexErrors": true,
+    "noUnusedLocals": true,
+    "noUnusedParameters": true,
+    "noImplicitReturns": true,
+    "moduleResolution": "node",
+    "baseUrl": "./",
+    "allowSyntheticDefaultImports": true,
+    "esModuleInterop": true,
+    "rootDir": "src",
+    "outDir": "build"
   },
   "include": [
     "src/index.ts",
     "src/@types/*"
   ],
   "exclude": [
-    "node_modules/**/*"
+    "coverage",
+    "node_modules",
+    "build"
   ]
 }

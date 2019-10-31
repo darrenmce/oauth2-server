@@ -1,5 +1,5 @@
 import * as openpgp from 'openpgp';
-import * as TokenGenerator from 'uuid-token-generator';
+import TokenGenerator from 'uuid-token-generator';
 import {
   EncryptionChallenge,
   EncryptionProof,

@@ -1,4 +1,4 @@
-import * as rc from 'rc';
+import rc from 'rc';
 import { OAuthConfig } from './types';
 import { StoreType } from '../lib/stores/types';
 const { name } = require('../../package.json');
