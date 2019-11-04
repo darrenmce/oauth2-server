@@ -20,6 +20,7 @@ import {
   validateMFAGrantRequestBody,
   validatePasswordGrantRequestBody
 } from '../grants/validate';
+import { asyncWrapHandler } from '../util/async-wrap-handler';
 
 type GrantRequestParams = {
   body: GrantRequestBody,
@@ -117,7 +118,7 @@ export class TokenHandler implements IRequestHandler {
   public getRouter(): Router {
     const router = Router();
 
-    router.post('/', this.tokenHandler.bind(this));
+    router.post('/', asyncWrapHandler(this.tokenHandler.bind(this)));
 
     return router;
   }

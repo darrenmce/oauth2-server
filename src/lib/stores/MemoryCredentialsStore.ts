@@ -1,7 +1,7 @@
 import bcrypt from 'bcryptjs';
 import { CredentialsMetaData, ICredentialsStore } from './types';
 import { BasicAuth, Username } from '../grants/types';
-import { AccountDoesNotExistError, AccountExistsError } from './errors';
+import { AccountExistsError } from './errors';
 
 type MemoryCredentialsMap = { [account: string]: Promise<string> };
 
@@ -26,9 +26,9 @@ export class MemoryCredentialsStore implements ICredentialsStore {
     return Promise.resolve(!!this.users[username]);
   }
 
-  validate({ username, password }: BasicAuth): Promise<boolean> {
+  async validate({ username, password }: BasicAuth): Promise<boolean> {
     if (!this.users[username]) {
-      return Promise.reject(new AccountDoesNotExistError());
+      return false;
     }
     return this.users[username]
       .then(passHash => bcrypt.compare(password, passHash));

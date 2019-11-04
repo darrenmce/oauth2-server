@@ -1,92 +1,27 @@
 import Bluebird from 'bluebird';
-import rp from 'request-promise';
-import { EncryptionProof, Stores } from '../stores/types';
-import { NextFunction, Request, Response, Router } from 'express';
-import { BasicAuth, Username } from '../grants/types';
-import { OAuthError, OAuthErrorType } from './errors';
+import { AuthCodeValues, Stores } from '../stores/types';
+import { Request, Response, Router } from 'express';
+import { OAuthError } from './errors';
 import { IRequestHandler } from '../../types/request-handler';
+import { Authentication, AuthenticationActionRoutes } from './Authentication';
+import { KeybaseUtil } from '../keybase';
+import { OneTimeSignIn } from '../authentication/OneTimeSignIn';
+import { asyncWrapHandler } from '../util/async-wrap-handler';
 
-enum AuthorizationActionRoutes {
-  usernamePasswordMFA = 'usernamePasswordMFA',
-  keybaseProof = 'keybaseProof'
-}
+export const ONE_TIME_SIGN_IN_ERROR_REDIRECT_URI = '/error';
 
 export class AuthorizationCodeHandler implements IRequestHandler {
-
-  protected static validateRequest(authType: AuthorizationActionRoutes, body: any): void {
-    // TODO: implement `state`
-    const { response_type } = body;
-    if (response_type !== 'code') {
-      throw new OAuthError(OAuthErrorType.unsupportedResponseType);
-    }
-
-    switch (authType) {
-      case AuthorizationActionRoutes.usernamePasswordMFA:
-        if (!body.password) {
-          throw new OAuthError(OAuthErrorType.invalidRequest);
-        }
-        break;
-      case AuthorizationActionRoutes.keybaseProof:
-        if (!body.decodedMessage) {
-          throw new OAuthError(OAuthErrorType.invalidRequest);
-        }
-        break;
-      default:
-        throw new OAuthError(OAuthErrorType.invalidRequest);
-    }
-  }
+  private readonly keybaseUtils: KeybaseUtil;
 
   constructor(
     private readonly stores: Stores,
-  ) {}
-
-  protected async verifyBasicAuth(basicAuth: BasicAuth, mfaToken: string): Promise<void> {
-    if (!basicAuth.username || !basicAuth.password) {
-      throw new OAuthError(OAuthErrorType.invalidRequest);
-    }
-
-    const basicVerified = await this.stores.credentialsStore.validate(basicAuth);
-
-    if (!basicVerified) {
-      throw new OAuthError(OAuthErrorType.accessDenied, 'Authorization Failed');
-    }
-
-    const mfaRequired = await this.stores.keyStore.isEnabled(basicAuth.username);
-    if (mfaRequired && !(await this.stores.keyStore.verify(basicAuth.username, mfaToken))) {
-      throw new OAuthError(OAuthErrorType.accessDenied, 'Authorization Failed');
-    }
-  }
-
-  protected async verifyEncryptionProof(proof: EncryptionProof): Promise<void> {
-    if (!proof.username) {
-      throw new OAuthError(OAuthErrorType.invalidRequest);
-    }
-
-    const verified = await this.stores.encryptionChallengeStore.validateAndConsumeProof(proof);
-
-    if (!verified) {
-      throw new OAuthError(OAuthErrorType.accessDenied, 'Authorization Failed');
-    }
-  }
-
-  protected verifyUser(authType: AuthorizationActionRoutes, username: Username, body: any): Promise<void> {
-    switch (authType) {
-      case AuthorizationActionRoutes.usernamePasswordMFA:
-        return this.verifyBasicAuth({ username, password: body.password }, body.mfa);
-      case AuthorizationActionRoutes.keybaseProof:
-        return this.verifyEncryptionProof({
-          username,
-          challengeId: body.challengeId,
-          decodedMessage: body.decodedMessage
-        });
-      default:
-        throw new OAuthError(OAuthErrorType.invalidRequest);
-    }
+    private readonly authentication: Authentication,
+  ) {
+    this.keybaseUtils = new KeybaseUtil();
   }
 
   public getRouter(): Router {
     const router = Router();
-
 
     router.get('/', (req: Request, res: Response) => {
       res.render('authorize', {
@@ -95,7 +30,7 @@ export class AuthorizationCodeHandler implements IRequestHandler {
       });
     });
 
-    router.post('/', async (req: Request, res: Response) => {
+    router.post('/', asyncWrapHandler(async (req: Request, res: Response) => {
       const { username } = req.body;
 
       const userExists = await this.stores.credentialsStore.exists(username);
@@ -108,7 +43,7 @@ export class AuthorizationCodeHandler implements IRequestHandler {
       let keybase_challenge = '';
       let challengeId = '';
       if (userMetaData.keybase_username) {
-        const pubkey = await rp(`https://keybase.io/${userMetaData.keybase_username}/pgp_keys.asc`);
+        const pubkey = await this.keybaseUtils.getKeybasePublicKey(userMetaData.keybase_username);
         const challenge = await this.stores.encryptionChallengeStore.generateChallenge(username, pubkey);
         keybase_challenge = challenge.encryptedMessage;
         challengeId = challenge.challengeId;
@@ -118,41 +53,56 @@ export class AuthorizationCodeHandler implements IRequestHandler {
         ...req.body,
         action: `${req.baseUrl}/verify`,
         keybase_username: userMetaData.keybase_username,
-        usernamePasswordMFAAuthType: AuthorizationActionRoutes.usernamePasswordMFA,
-        keybaseProofAuthType: AuthorizationActionRoutes.keybaseProof,
+        usernamePasswordMFAAuthType: AuthenticationActionRoutes.usernamePasswordMFA,
+        keybaseProofAuthType: AuthenticationActionRoutes.keybaseProof,
         keybase_challenge,
         challengeId
       });
-    });
+    }));
 
-    router.post('/verify', (req: Request, res: Response, next: NextFunction) => {
+    router.get('/verify-one-time', asyncWrapHandler(async (req: Request, res: Response) => {
+      const { username, token } = OneTimeSignIn.parseOneTimeURL(req.query);
+      const validatePromise = this.authentication.verifyOneTimeSignIn(username, token);
+      await this.handleAuthCodeRedirect(res, ONE_TIME_SIGN_IN_ERROR_REDIRECT_URI, validatePromise);
+    }));
 
+    router.post('/verify', asyncWrapHandler(async (req: Request, res: Response) => {
       const { authType } = req.body;
 
       const { username, client_id, redirect_uri, state } = req.body;
 
-      return Bluebird.resolve()
-        .then(() => AuthorizationCodeHandler.validateRequest(authType, req.body))
-        .then(() => this.verifyUser(authType, username, req.body))
-        .then(() => this.stores.authCodeStore.generate({
+      const validatePromise = Bluebird.resolve(Authentication.validateVerifyRequest(authType, req.body))
+        .then(() => this.authentication.verifyUser(authType, username, req.body))
+        .then(() => ({
           username,
           clientId: client_id,
-          redirectURI: redirect_uri
-        }))
-        .then(authCode => {
-          let redirectURL = `${redirect_uri}?code=${authCode}`;
-          if (state) {
-            redirectURL += `&state=${state}`;
-          }
-          res.redirect(302, redirectURL);
-        })
-        .catch(OAuthError, (err: OAuthError) => {
-          res.redirect(302, `${redirect_uri}?${err.toQueryString(state)}`);
-        })
-        .catch(next);
+          redirectURI: redirect_uri,
+          state
+        }));
 
-    });
+      await this.handleAuthCodeRedirect(res, redirect_uri, validatePromise);
+    }));
 
     return router;
+  }
+
+  protected async handleAuthCodeRedirect(res: Response, baseRedirectURI: string, validation: Promise<AuthCodeValues>) {
+    let authCodeValues: AuthCodeValues;
+    try {
+      authCodeValues = await validation;
+      const authCode = await this.stores.authCodeStore.generate(authCodeValues);
+
+      let fullRedirectURL = `${authCodeValues.redirectURI}?code=${authCode}`;
+      if (authCodeValues.state) {
+        fullRedirectURL += `&state=${authCodeValues.state}`;
+      }
+      res.redirect(302, fullRedirectURL);
+    } catch (err) {
+      if (err instanceof OAuthError) {
+        res.redirect(302, `${baseRedirectURI}?${err.toQueryString((authCodeValues && authCodeValues.state))}`);
+      } else {
+        throw err;
+      }
+    }
   }
 }

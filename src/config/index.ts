@@ -15,6 +15,21 @@ const defaultConfig: OAuthConfig = {
       host: 'localhost',
       port: 6379
     }
+  },
+  services: {
+    mailer: {
+      type: 'sendgrid',
+      apiKey: '',
+      emailConfig: {
+        oneTimeSignIn: {
+          from: {
+            email: 'no-reply-auth@darrenmce.com',
+            name: 'OAuth 2 Server'
+          },
+          templateId: 'd-c52fd2e6fc22477fb800e02da5422b91'
+        }
+      }
+    }
   }
 };
 

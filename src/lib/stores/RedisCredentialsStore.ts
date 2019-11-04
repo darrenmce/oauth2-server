@@ -4,8 +4,7 @@ import { RedisClient } from 'redis';
 
 import { CredentialsMetaData, ICredentialsStore } from './types';
 import { BasicAuth, Username } from '../grants/types';
-import { AccountDoesNotExistError, AccountExistsError } from './errors';
-
+import { AccountExistsError } from './errors';
 
 export class RedisCredentialsStore implements ICredentialsStore {
   private rGet: (key: string) => Promise<string>;
@@ -50,7 +49,7 @@ export class RedisCredentialsStore implements ICredentialsStore {
 
   public async validate({ username, password }: BasicAuth): Promise<boolean> {
     if (!await this.exists(username)) {
-      throw new AccountDoesNotExistError();
+      return false;
     }
 
     const passHash = await this.rGet(this.formatKey(username));

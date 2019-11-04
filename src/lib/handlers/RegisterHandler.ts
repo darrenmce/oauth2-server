@@ -3,6 +3,7 @@ import qrcode from 'qrcode';
 import { CredentialsMetaData, MFAKey, Stores } from '../stores/types';
 import { Request, Response, Router } from 'express';
 import { IRequestHandler } from '../../types/request-handler';
+import { asyncWrapHandler } from '../util/async-wrap-handler';
 
 export type RegistrationPayload = {
   username: string,
@@ -78,7 +79,7 @@ export class RegisterHandler implements IRequestHandler {
       res.render('register');
     });
 
-    router.post('/', async (req: Request, res: Response) => {
+    router.post('/', asyncWrapHandler(async (req: Request, res: Response) => {
       const validation = await this.validateRegistration(req.body as RegistrationPayload);
       if (!validation.result) {
         return res.render('register', { message: `Registration Failed: ${validation.reason}`});
@@ -99,7 +100,7 @@ export class RegisterHandler implements IRequestHandler {
         qrcode = await RegisterHandler.renderQRCode(username, HARDCODED_ISSUER, mfaKey);
       }
       res.render('register', { message: 'Registration complete!', qrcode });
-    });
+    }));
 
     return router;
   }

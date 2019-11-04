@@ -45,11 +45,17 @@ export interface IEncryptionChallengeStore {
   validateAndConsumeProof(proof: EncryptionProof): Promise<boolean>
 }
 
+export interface IConsumableTokenStore<TTokenData> {
+  create(tokenData: TTokenData): Promise<string>;
+  consume(token: string): Promise<TTokenData | null>;
+}
+
 export type Stores = {
   keyStore: IKeyStore,
   credentialsStore: ICredentialsStore,
   authCodeStore: IAuthorizationCodeStore,
-  encryptionChallengeStore: IEncryptionChallengeStore
+  encryptionChallengeStore: IEncryptionChallengeStore,
+  oneTimeSignInStore: IConsumableTokenStore<AuthCodeValues>
 }
 
 export type AuthCode = string;
@@ -59,6 +65,7 @@ export type AuthCodeConsume = {
 export type AuthCodeValues = AuthCodeConsume & {
   username: string,
   clientId: string,
+  state?: string
 }
 
 export interface IAuthorizationCodeStore {
