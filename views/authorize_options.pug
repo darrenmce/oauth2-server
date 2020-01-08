@@ -5,10 +5,14 @@ block head
 
 block body
     h2 Authorize User: !{username}
-    include _authorize/username_password_mfa
-    br
-    include _authorize/keybase_proof
 
-block foot
+    h3 Choose method of authentication
     hr
-    p footer hello world
+    h3 - Username/Password with MFA
+    include _authorize/username_password_mfa
+    hr
+    h3 - Keybase Proof
+    include _authorize/keybase_proof
+    hr
+    h3 - One Time Sign-In Link
+    include _authorize/one_time_signin

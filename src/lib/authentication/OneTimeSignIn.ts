@@ -61,7 +61,7 @@ export class OneTimeSignIn implements IRequestHandler {
         pathname: '/authorize/verify-one-time',
       });
 
-      // TODO: require client secret and can only be emailed on behalf of the user by the register client
+      // TODO: require client secret and can only be emailed on behalf of the user by the registered client
       const oneTimeURL = await this.generateOneTimeURL( baseUrl, {
         username,
         clientId: client_id,
@@ -70,7 +70,11 @@ export class OneTimeSignIn implements IRequestHandler {
       });
 
       await this.mailer.sendOneTimeSignIn(username, { url: oneTimeURL });
-      res.json({ status: 'OK' });
+      if (!req.accepts('text/html')) {
+        res.json({ status: 'OK' });
+      } else {
+        res.render('one_time_success', { email_address: username });
+      }
     });
 
     return router;

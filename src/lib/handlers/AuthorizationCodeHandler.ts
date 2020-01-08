@@ -8,8 +8,6 @@ import { KeybaseUtil } from '../keybase';
 import { OneTimeSignIn } from '../authentication/OneTimeSignIn';
 import { asyncWrapHandler } from '../util/async-wrap-handler';
 
-export const ONE_TIME_SIGN_IN_ERROR_REDIRECT_URI = '/error';
-
 export class AuthorizationCodeHandler implements IRequestHandler {
   private readonly keybaseUtils: KeybaseUtil;
 
@@ -36,6 +34,7 @@ export class AuthorizationCodeHandler implements IRequestHandler {
       const userExists = await this.stores.credentialsStore.exists(username);
       if (!userExists) {
         res.status(404).send('User not found');
+        return;
       }
 
       const userMetaData = await this.stores.credentialsStore.getMetadata(username);
@@ -52,6 +51,7 @@ export class AuthorizationCodeHandler implements IRequestHandler {
       res.render('authorize_options', {
         ...req.body,
         action: `${req.baseUrl}/verify`,
+        onetimeSigninAction: '/one-time/generate',
         keybase_username: userMetaData.keybase_username,
         usernamePasswordMFAAuthType: AuthenticationActionRoutes.usernamePasswordMFA,
         keybaseProofAuthType: AuthenticationActionRoutes.keybaseProof,
@@ -63,8 +63,12 @@ export class AuthorizationCodeHandler implements IRequestHandler {
     router.get('/verify-one-time', asyncWrapHandler(async (req: Request, res: Response) => {
       const { username, token } = OneTimeSignIn.parseOneTimeURL(req.query);
       const validatePromise = this.authentication.verifyOneTimeSignIn(username, token);
-      await this.handleAuthCodeRedirect(res, ONE_TIME_SIGN_IN_ERROR_REDIRECT_URI, validatePromise);
+      await this.handleAuthCodeRedirect(res, `${req.baseUrl}/one-time-error`, validatePromise);
     }));
+
+    router.get('/one-time-error', (req, res) => {
+      res.render('one_time_error', { ...req.query });
+    });
 
     router.post('/verify', asyncWrapHandler(async (req: Request, res: Response) => {
       const { authType } = req.body;
