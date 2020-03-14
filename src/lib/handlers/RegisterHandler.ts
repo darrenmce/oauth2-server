@@ -4,6 +4,7 @@ import { CredentialsMetaData, MFAKey, Stores } from '../stores/types';
 import { Request, Response, Router } from 'express';
 import { IRequestHandler } from '../../types/request-handler';
 import { asyncWrapHandler } from '../util/async-wrap-handler';
+import { RegisterConfig } from '../../config/types';
 
 export type RegistrationPayload = {
   username: string,
@@ -17,32 +18,40 @@ type PasswordValidation = {
   reason?: string
 }
 
-const MAX_PASSWORD_LENGTH = 64;
-const PASSWORD_MINLENGTH = /.{8,}/;
-const PASSWORD_LOWER = /.*[a-z]/;
-const PASSWORD_UPPER = /.*[A-Z]/;
-const PASSWORD_NUMBER = /.*[0-9]/;
-const PASSWORD_SPECIAL = /.*[!@#\$%\^&\*]/;
-const PASSWORD_ACCEPTED_CHARS = /^[A-Za-z0-9!@#\$%\^&\*]*$/;
+export enum PASSWORD_RULE {
+  PASSWORD_MINLENGTH = 'PASSWORD_MINLENGTH',
+  PASSWORD_ACCEPTED_CHARS = 'PASSWORD_ACCEPTED_CHARS',
+  PASSWORD_LOWER = 'PASSWORD_LOWER',
+  PASSWORD_UPPER = 'PASSWORD_UPPER',
+  PASSWORD_NUMBER = 'PASSWORD_NUMBER',
+  PASSWORD_SPECIAL = 'PASSWORD_SPECIAL'
+}
 
-const PASSWORD_RULES = [
-  PASSWORD_MINLENGTH,
-  PASSWORD_ACCEPTED_CHARS,
-  PASSWORD_LOWER,
-  PASSWORD_UPPER,
-  PASSWORD_NUMBER,
-  PASSWORD_SPECIAL,
+const PASSWORD_RULE_MAP: Record<PASSWORD_RULE, RegExp> = {
+  PASSWORD_MINLENGTH: /.{8,}/,
+  PASSWORD_LOWER: /.*[a-z]/,
+  PASSWORD_UPPER: /.*[A-Z]/,
+  PASSWORD_NUMBER: /.*[0-9]/,
+  PASSWORD_SPECIAL: /.*[!@#\$%\^&\*]/,
+  PASSWORD_ACCEPTED_CHARS: /^[A-Za-z0-9!@#\$%\^&\*]*$/
+};
+
+const DEFAULT_PASSWORD_RULES: PASSWORD_RULE[] = [
+  PASSWORD_RULE.PASSWORD_MINLENGTH,
+  PASSWORD_RULE.PASSWORD_ACCEPTED_CHARS,
+  PASSWORD_RULE.PASSWORD_LOWER,
+  PASSWORD_RULE.PASSWORD_UPPER,
+  PASSWORD_RULE.PASSWORD_NUMBER,
+  PASSWORD_RULE.PASSWORD_SPECIAL,
 ];
 
-const HARDCODED_ISSUER = 'Rangle Test Auth';
-
 export class RegisterHandler implements IRequestHandler {
-  protected static testPassword(password: string): boolean {
-    return PASSWORD_RULES.reduce((valid, regex) => {
+  protected static testPassword(password: string, passwordRules: PASSWORD_RULE[] = DEFAULT_PASSWORD_RULES): boolean {
+    return passwordRules.reduce((valid, rule) => {
       if (!valid) {
         return false
       }
-      return regex.test(password);
+      return PASSWORD_RULE_MAP[rule].test(password);
     }, true);
   }
 
@@ -52,6 +61,7 @@ export class RegisterHandler implements IRequestHandler {
   }
 
   constructor(
+    private readonly config: RegisterConfig,
     private readonly stores: Stores
   ) {}
 
@@ -63,10 +73,10 @@ export class RegisterHandler implements IRequestHandler {
     if (password !== password_repeat) {
       return fail('Password mismatch');
     }
-    if (password.length > MAX_PASSWORD_LENGTH) {
-      return fail(`Password cannot exceed ${MAX_PASSWORD_LENGTH} characters`);
+    if (password.length > this.config.maxPasswordLength) {
+      return fail(`Password cannot exceed ${this.config.maxPasswordLength} characters`);
     }
-    if (!RegisterHandler.testPassword(password)) {
+    if (!RegisterHandler.testPassword(password, this.config.passwordRules)) {
       return fail(`Password too weak`);
     }
     return { result: true };
@@ -97,7 +107,7 @@ export class RegisterHandler implements IRequestHandler {
       let qrcode;
       if (req.body.mfa) {
         const mfaKey = await this.stores.keyStore.create(username);
-        qrcode = await RegisterHandler.renderQRCode(username, HARDCODED_ISSUER, mfaKey);
+        qrcode = await RegisterHandler.renderQRCode(username, this.config.issuer, mfaKey);
       }
       res.render('register', { message: 'Registration complete!', qrcode });
     }));

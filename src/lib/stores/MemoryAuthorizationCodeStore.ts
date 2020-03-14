@@ -1,5 +1,7 @@
+import Logger from 'bunyan';
 import TokenGenerator from 'uuid-token-generator';
 import NodeCache from 'node-cache';
+
 import { AuthCode, AuthCodeConsume, AuthCodeValues, IAuthorizationCodeStore } from './types';
 
 const DEFAULT_TTL_SECONDS = 60 * 60; //1hr
@@ -8,14 +10,17 @@ export class MemoryAuthorizationCodeStore implements IAuthorizationCodeStore {
   private codes: NodeCache;
   private readonly tokenGenerator: TokenGenerator;
 
-  constructor(authCodeTTLSeconds: number = DEFAULT_TTL_SECONDS) {
+  constructor(
+    private log: Logger,
+    authCodeTTLSeconds: number = DEFAULT_TTL_SECONDS
+  ) {
     this.codes = new NodeCache({ stdTTL: authCodeTTLSeconds });
     this.tokenGenerator = new TokenGenerator();
   }
 
   generate(authCodeValues: AuthCodeValues): Promise<AuthCode> {
     const authCode = this.tokenGenerator.generate(128, TokenGenerator.BASE58);
-    console.log(`AuthorizationCodeStore: generating code for ${authCodeValues.username}: ${authCode}`);
+    this.log.info('AuthorizationCodeStore: generating code', { username: authCodeValues.username, authCode });
     this.codes.set(authCode, authCodeValues);
     return Promise.resolve(authCode);
   }

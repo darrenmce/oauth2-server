@@ -1,11 +1,12 @@
 /*
 invalid_request
-             The request is missing a required parameter, includes an
-             invalid parameter value, includes a parameter more than
-             once, or is otherwise malformed.
-             unauthorized_client
-             The client is not authorized to request an authorization
-             code using this method.
+     The request is missing a required parameter, includes an
+     invalid parameter value, includes a parameter more than
+     once, or is otherwise malformed.
+
+unauthorized_client
+     The client is not authorized to request an authorization
+     code using this method.
 
 access_denied
      The resource owner or authorization server denied the
@@ -36,11 +37,11 @@ temporarily_unavailable
 
 /*
 invalid_request
-               The request is missing a required parameter, includes an
-               unsupported parameter value (other than grant type),
-               repeats a parameter, includes multiple credentials,
-               utilizes more than one mechanism for authenticating the
-               client, or is otherwise malformed.
+     The request is missing a required parameter, includes an
+     unsupported parameter value (other than grant type),
+     repeats a parameter, includes multiple credentials,
+     utilizes more than one mechanism for authenticating the
+     client, or is otherwise malformed.
 
 invalid_client
      Client authentication failed (e.g., unknown client, no
@@ -69,6 +70,8 @@ unsupported_grant_type
      The authorization grant type is not supported by the
      authorization server.
  */
+
+import { NextFunction, Response } from 'express';
 
 export enum OAuthErrorType {
   invalidGrant = 'invalid_grant',
@@ -128,4 +131,12 @@ export class OAuthError extends Error {
     }
     return qs;
   }
+}
+
+export function oAuthErrorHandler(err: OAuthError | Error, _req, res: Response, next: NextFunction) {
+  if (err instanceof OAuthError && !res.headersSent) {
+    res.status(err.statusCode).send(`${err.message}${err.error_description ? ' - ' + err.error_description : ''}`);
+    return;
+  }
+  next(err);
 }

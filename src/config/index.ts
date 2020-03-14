@@ -4,7 +4,20 @@ import { StoreType } from '../lib/stores/types';
 const { name } = require('../../package.json');
 
 const defaultConfig: OAuthConfig = {
-  port: 8080,
+  auth: {
+    register: {
+      maxPasswordLength: 100,
+      issuer: 'OAuth2-Server',
+      passwordRules: undefined
+    }
+  },
+  server: {
+    port: 8080,
+    log: {
+      name,
+      level: 'info'
+    }
+  },
   stores: {
     authCode: StoreType.memory,
     key: StoreType.memory,
@@ -40,5 +53,5 @@ export function getConfig(): OAuthConfig {
   }
   called = true;
 
-  return rc(name, defaultConfig);
+  return rc(name, defaultConfig) as OAuthConfig;
 }

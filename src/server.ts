@@ -1,5 +1,7 @@
-import express from 'express';
 import bodyParser from 'body-parser';
+import Logger from 'bunyan';
+import express from 'express';
+import bunyanExpress from 'express-bunyan-logger';
 
 import { createStores } from './lib/stores';
 import { createGrants } from './lib/grants';
@@ -7,7 +9,7 @@ import { createGrants } from './lib/grants';
 import { TokenHandler } from './lib/handlers/TokenHandler';
 import { RegisterHandler } from './lib/handlers/RegisterHandler';
 import { AuthorizationCodeHandler } from './lib/handlers/AuthorizationCodeHandler';
-import { OAuthError } from './lib/handlers/errors';
+import { oAuthErrorHandler } from './lib/handlers/errors';
 
 import { OAuthConfig } from './config/types';
 import { DBClients } from './lib/stores/types';
@@ -16,13 +18,14 @@ import { Services } from './services';
 import { OneTimeSignIn } from './lib/authentication/OneTimeSignIn';
 
 type CreateServerParams = {
+  log: Logger,
   config: OAuthConfig,
   dbClients: DBClients,
   services: Services
 }
 
-export async function createServer({ config, dbClients, services }: CreateServerParams): Promise<express.Express> {
-  const stores = createStores(config.stores, dbClients);
+export async function createServer({ log, config, dbClients, services }: CreateServerParams): Promise<express.Express> {
+  const stores = createStores(log, config.stores, dbClients);
   const grants = createGrants(stores);
 
   const app = express();
@@ -30,7 +33,7 @@ export async function createServer({ config, dbClients, services }: CreateServer
   const authenticationLib = new Authentication(stores);
 
   const tokenRouter = new TokenHandler(grants, stores).getRouter();
-  const registerRouter = new RegisterHandler(stores).getRouter();
+  const registerRouter = new RegisterHandler(config.auth.register, stores).getRouter();
   const authorizationCodeRouter = new AuthorizationCodeHandler(stores, authenticationLib).getRouter();
   const oneTimeSignInRouter = new OneTimeSignIn(stores, services.mailer).getRouter();
 
@@ -38,6 +41,10 @@ export async function createServer({ config, dbClients, services }: CreateServer
   app.set('views', './views');
 
   app.use(bodyParser.urlencoded({ extended: false }));
+
+  app.use(bunyanExpress({
+    logger: log
+  }));
 
   app.get('/login', (_req, res) => {
     res.render('login');
@@ -48,12 +55,12 @@ export async function createServer({ config, dbClients, services }: CreateServer
   app.use('/token', tokenRouter);
   app.use('/register', registerRouter);
 
-  app.use((err, _req, res, next) => {
-    if (err instanceof OAuthError && !res.headersSent) {
-      return res.status(err.statusCode).send(`${err.message}${err.error_description ? ' - ' + err.error_description : ''}`);
-    }
-    next(err);
-  });
+  app.use(oAuthErrorHandler);
+
+  app.use(bunyanExpress.errorLogger({
+    logger: log
+  }));
+
   return app;
 }
 

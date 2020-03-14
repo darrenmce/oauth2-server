@@ -1,6 +1,8 @@
 import TokenGenerator from 'uuid-token-generator';
 import { promisify } from 'bluebird';
 import { RedisClient } from 'redis';
+import Logger from 'bunyan';
+
 import { AuthCode, AuthCodeConsume, AuthCodeValues, IAuthorizationCodeStore } from './types';
 
 const DEFAULT_TTL_SECONDS = 30;
@@ -29,6 +31,7 @@ export class RedisAuthorizationCodeStore implements IAuthorizationCodeStore {
   }
 
   constructor(
+    private readonly log: Logger,
     private readonly redis: RedisClient,
     private readonly namespace: string,
     private authCodeTTLSeconds: number = DEFAULT_TTL_SECONDS
@@ -44,7 +47,7 @@ export class RedisAuthorizationCodeStore implements IAuthorizationCodeStore {
     const setex = promisify(this.redis.setex).bind(this.redis);
 
     const authCode = this.tokenGenerator.generate(128, TokenGenerator.BASE58);
-    console.log(`AuthorizationCodeStore: generating code for ${authCodeValues.username}: ${authCode}`);
+    this.log.info('AuthorizationCodeStore: generating code', { username: authCodeValues.username, authCode });
     return setex(this.formatKey(authCode), this.authCodeTTLSeconds, RedisAuthorizationCodeStore.setValue(authCodeValues))
       .then(() => authCode);
   }

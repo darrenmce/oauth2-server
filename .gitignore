@@ -1,4 +1,4 @@
 .idea
 node_modules
 dist
-.oauth-serverrc
+.oauth2-serverrc
