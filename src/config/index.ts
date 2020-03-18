@@ -1,6 +1,8 @@
 import rc from 'rc';
 import { OAuthConfig } from './types';
 import { StoreType } from '../lib/stores/types';
+import { stdSerializers } from 'bunyan';
+import { oAuthSerializers } from '../lib/logger/serializers';
 const { name } = require('../../package.json');
 
 const defaultConfig: OAuthConfig = {
@@ -15,7 +17,11 @@ const defaultConfig: OAuthConfig = {
     port: 8080,
     log: {
       name,
-      level: 'info'
+      level: 'info',
+      serializers: {
+        ...stdSerializers,
+        ...oAuthSerializers
+      }
     }
   },
   stores: {

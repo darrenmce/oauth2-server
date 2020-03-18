@@ -1,5 +1,5 @@
-import sgMail from '@sendgrid/mail'
 import { IOAuthMailer } from './index';
+import { SendgridMailService } from '../util/sendgrid';
 
 export type EmailDataConfig = {
   templateId: string,
@@ -17,19 +17,12 @@ export type SendGridConfig = {
   }
 };
 
-export type SendGridMailService = {
-  new(): typeof sgMail.MailService
-}
-// thanks sendgrid for not typing your stuff right
-const MailService = sgMail.MailService as any as SendGridMailService;
-
 export class SendGrid implements IOAuthMailer {
-  private readonly mailService: typeof sgMail.MailService;
+  private readonly mailService: SendgridMailService;
   constructor(
     private readonly sendgridConfig: SendGridConfig
   ) {
-    this.mailService = new MailService();
-    this.mailService.setApiKey(sendgridConfig.apiKey);
+    this.mailService = new SendgridMailService(sendgridConfig.apiKey);
   }
 
   protected createSendEmail<TTemplateData extends Record<string, string> = Record<string, string>>
@@ -39,7 +32,8 @@ export class SendGrid implements IOAuthMailer {
         from: emailConfig.from,
         dynamicTemplateData: templateData,
         to: address,
-        templateId: emailConfig.templateId
+        templateId: emailConfig.templateId,
+        content: undefined
       });
     }
   }

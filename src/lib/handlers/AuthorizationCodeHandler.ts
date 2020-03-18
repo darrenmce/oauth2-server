@@ -1,17 +1,20 @@
 import Bluebird from 'bluebird';
 import { AuthCodeValues, Stores } from '../stores/types';
 import { Request, Response, Router } from 'express';
-import { OAuthError } from './errors';
+import { createErrorLocation, OAuthError } from './errors';
 import { IRequestHandler } from '../../types/request-handler';
 import { Authentication, AuthenticationActionRoutes } from './Authentication';
 import { KeybaseUtil } from '../keybase';
 import { OneTimeSignIn } from '../authentication/OneTimeSignIn';
 import { asyncWrapHandler } from '../util/async-wrap-handler';
+import Logger from 'bunyan';
+import { constructURL } from '../util/obj-to-querystring';
 
 export class AuthorizationCodeHandler implements IRequestHandler {
   private readonly keybaseUtils: KeybaseUtil;
 
   constructor(
+    private readonly log: Logger,
     private readonly stores: Stores,
     private readonly authentication: Authentication,
   ) {
@@ -63,7 +66,7 @@ export class AuthorizationCodeHandler implements IRequestHandler {
     router.get('/verify-one-time', asyncWrapHandler(async (req: Request, res: Response) => {
       const { username, token } = OneTimeSignIn.parseOneTimeURL(req.query);
       const validatePromise = this.authentication.verifyOneTimeSignIn(username, token);
-      await this.handleAuthCodeRedirect(res, `${req.baseUrl}/one-time-error`, validatePromise);
+      await this.handleValidationResult(res, `${req.baseUrl}/one-time-error`, validatePromise);
     }));
 
     router.get('/one-time-error', (req, res) => {
@@ -84,27 +87,28 @@ export class AuthorizationCodeHandler implements IRequestHandler {
           state
         }));
 
-      await this.handleAuthCodeRedirect(res, redirect_uri, validatePromise);
+      await this.handleValidationResult(res, redirect_uri, validatePromise);
     }));
 
     return router;
   }
 
-  protected async handleAuthCodeRedirect(res: Response, baseRedirectURI: string, validation: Promise<AuthCodeValues>) {
+  protected async handleValidationResult(res: Response, baseErrorRedirectURI: string, validation: Promise<AuthCodeValues>) {
     let authCodeValues: AuthCodeValues;
     try {
       authCodeValues = await validation;
       const authCode = await this.stores.authCodeStore.generate(authCodeValues);
-
-      let fullRedirectURL = `${authCodeValues.redirectURI}?code=${authCode}`;
-      if (authCodeValues.state) {
-        fullRedirectURL += `&state=${authCodeValues.state}`;
-      }
+      const fullRedirectURL = constructURL(authCodeValues.redirectURI, {
+        code: authCode,
+        state: authCodeValues.state
+      });
+      this.log.info({ authCodeValues }, 'Successful authorization code generation');
       res.redirect(302, fullRedirectURL);
     } catch (err) {
       if (err instanceof OAuthError) {
-        res.redirect(302, `${baseRedirectURI}?${err.toQueryString((authCodeValues && authCodeValues.state))}`);
+        res.redirect(302, createErrorLocation(baseErrorRedirectURI, err));
       } else {
+        this.log.error(err, 'Unexpected error in authorization code validation');
         throw err;
       }
     }

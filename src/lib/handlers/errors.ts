@@ -72,6 +72,7 @@ unsupported_grant_type
  */
 
 import { NextFunction, Response } from 'express';
+import { constructURL } from '../util/obj-to-querystring';
 
 export enum OAuthErrorType {
   invalidGrant = 'invalid_grant',
@@ -86,18 +87,20 @@ export enum OAuthErrorType {
   temporarilyUnavailable = 'temporarily_unavailable'
 }
 
-const statusCodes = {
-  invalidGrant: 400,
-  invalidClient: 400,
-  invalidRequest: 400,
-  unsupportedGrantType: 400,
-  unauthorizedClient: 401,
-  accessDenied: 401,
-  unsupportedResponseType: 400,
-  invalidScope: 400,
-  serverError: 500,
-  temporarilyUnavailable: 503
+const STATUS_CODE_MAP: Record<OAuthErrorType, number> = {
+  [OAuthErrorType.invalidGrant]: 400,
+  [OAuthErrorType.invalidClient]: 400,
+  [OAuthErrorType.invalidRequest]: 400,
+  [OAuthErrorType.unsupportedGrantType]: 400,
+  [OAuthErrorType.unauthorizedClient]: 401,
+  [OAuthErrorType.accessDenied]: 401,
+  [OAuthErrorType.unsupportedResponseType]: 400,
+  [OAuthErrorType.invalidScope]: 400,
+  [OAuthErrorType.serverError]: 500,
+  [OAuthErrorType.temporarilyUnavailable]: 503
 };
+
+const DEFAULT_ERROR: OAuthErrorType = OAuthErrorType.invalidRequest;
 
 export class ResourceOwnerError extends Error {
   constructor(message: string) {
@@ -107,29 +110,15 @@ export class ResourceOwnerError extends Error {
 }
 
 export class OAuthError extends Error {
-  public statusCode: number;
-
+  public readonly statusCode: number;
   constructor(
-    readonly error: OAuthErrorType,
-    readonly error_description?: string,
-    readonly error_uri?: string,
+    public readonly error: OAuthErrorType,
+    public readonly error_description?: string,
+    public readonly error_uri?: string,
   ) {
     super(error);
-    this.statusCode = statusCodes[error] || 400;
+    this.statusCode = STATUS_CODE_MAP[error] || STATUS_CODE_MAP[DEFAULT_ERROR];
     Object.setPrototypeOf(this, new.target.prototype);
-  }
-  toQueryString(state?: string): string {
-    let qs = `error=${this.error}`;
-    if (this.error_description) {
-      qs += `&error_description=${this.error_description}`;
-    }
-    if (this.error_uri) {
-      qs += `&error_uri=${this.error_uri}`;
-    }
-    if (state) {
-      qs += `&state=${state}`;
-    }
-    return qs;
   }
 }
 
@@ -139,4 +128,12 @@ export function oAuthErrorHandler(err: OAuthError | Error, _req, res: Response, 
     return;
   }
   next(err);
+}
+
+export function createErrorLocation(baseUrl: string, err: OAuthError) : string {
+  return constructURL(baseUrl, {
+    error: err.error,
+    error_description: err.error_description,
+    error_uri: err.error_uri
+  });
 }

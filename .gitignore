@@ -2,3 +2,8 @@
 node_modules
 dist
 .oauth2-serverrc
+
+coverage
+
+# contraversial, but i prefer it until stable
+package-lock.json

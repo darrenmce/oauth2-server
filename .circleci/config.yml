@@ -1,0 +1,23 @@
+version: 2.1
+
+jobs:
+  build:
+    working_directory: ~/project
+    docker:
+      - image: circleci/node:12
+    steps:
+      - checkout
+      - run:
+          name: install
+          command: npm install
+      - run:
+          name: test
+          command: npm run test
+      - store_artifacts:
+          path: coverage
+
+
+workflows:
+  build-and-test:
+    jobs:
+      - build

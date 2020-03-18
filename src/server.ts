@@ -26,7 +26,7 @@ type CreateServerParams = {
 
 export async function createServer({ log, config, dbClients, services }: CreateServerParams): Promise<express.Express> {
   const stores = createStores(log, config.stores, dbClients);
-  const grants = createGrants(stores);
+  const grants = createGrants(log, stores);
 
   const app = express();
 
@@ -34,7 +34,7 @@ export async function createServer({ log, config, dbClients, services }: CreateS
 
   const tokenRouter = new TokenHandler(grants, stores).getRouter();
   const registerRouter = new RegisterHandler(config.auth.register, stores).getRouter();
-  const authorizationCodeRouter = new AuthorizationCodeHandler(stores, authenticationLib).getRouter();
+  const authorizationCodeRouter = new AuthorizationCodeHandler(log, stores, authenticationLib).getRouter();
   const oneTimeSignInRouter = new OneTimeSignIn(stores, services.mailer).getRouter();
 
   app.set('view engine', 'pug');
