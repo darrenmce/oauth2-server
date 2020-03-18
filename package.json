@@ -7,7 +7,8 @@
     "start": "node build",
     "dev": "nodemon src/index.ts",
     "build": "rimraf build && tsc",
-    "test": "jest --coverage"
+    "test": "jest --coverage --runInBand",
+    "test-watch": "jest --watch"
   },
   "author": "",
   "license": "ISC",
